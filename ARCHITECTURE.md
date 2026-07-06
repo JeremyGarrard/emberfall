@@ -61,5 +61,9 @@ BEFORE `buildHUD()` — refreshHUD writes to them) → panels.
 - **New building**: edit `VILLAGE_LAYOUT` chars + `CHAR_TILE` + `BUILDINGS` roof rect.
 - **New quest**: `QUESTS` entry + state machine in `GameData.quests` + offer/complete
   hooks in `dialogue.js openFor` + world triggers (see lostblade for the pattern).
-- **New settlement**: see BACKLOG "Second settlement" — requires generalizing
-  `inVillage` → settlements list. Follow that ticket.
+- **New settlement**: add a `{layout, x1, y1}` entry to `SETTLEMENTS` (x2/y2 are
+  derived). The stamp, `inVillage` sanctuary, prop spawns, and terrain shelf all loop
+  the list. New layout chars → `CHAR_TILE` (+`CHAR_PROP` for prop/decor tiles like the
+  camp's `K` campfire and `X` tents). Villagers pin to a settlement via `st:` index +
+  layout-relative `spot`; give them a `locale` string to override the Emberfall blurb in
+  `dialogue.js buildSystem`. Roofed buildings still come from `BUILDINGS` (village only).

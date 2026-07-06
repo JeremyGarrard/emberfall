@@ -166,6 +166,11 @@ const Dialogue = {
       facts += chests.length
         ? ` A guest whispered that treasure waits ${dirName(nearest(chests).x - START.x, nearest(chests).y - START.y)} of the village, and you repeat every word of it.`
         : ' Your guests say every treasure in the vale has been found.';
+    } else if (cfg.specialty === 'wolves') {
+      const wolves = enemies.filter(e => e.type === 'wolf');
+      facts += wolves.length
+        ? ` By your reckoning ${wolves.length} dire ${wolves.length > 1 ? 'wolves' : 'wolf'} still run the vale; the nearest pack prowls ${dirName(nearest(wolves).x - START.x, nearest(wolves).y - START.y)} of the village.`
+        : ' You have run down the last of the dire wolves — the vale is clear of them, for now.';
     }
 
     if (cfg.id === 'bram') {
@@ -176,7 +181,8 @@ const Dialogue = {
     }
 
     const party = GameData.party.map(h => `${h.name} the ${h.cls} (level ${h.level})`).join(', ');
-    return `You are ${v.name}, ${cfg.persona} You live in Emberfall, a tiny palisaded frontier village in a monster-haunted vale — it has a timbered town hall, a stone smithy, the Silver Stoat tavern, a plank-walled trading post, a well, and a healing fountain on the green. One gate faces east toward the wilds. You are usually found at ${cfg.home}. ` +
+    const abode = cfg.locale || 'You live in Emberfall, a tiny palisaded frontier village in a monster-haunted vale — it has a timbered town hall, a stone smithy, the Silver Stoat tavern, a plank-walled trading post, a well, and a healing fountain on the green. One gate faces east toward the wilds.';
+    return `You are ${v.name}, ${cfg.persona} ${abode} You are usually found at ${cfg.home}. ` +
       `The adventurers speaking with you: ${party}. They carry ${GameData.gold} gold. ${facts} ` +
       `Stay in character at all times, medieval fantasy tone. Keep every reply to 1-3 short sentences of plain spoken dialogue — no narration, no asterisks, no lists. ` +
       `Never mention computers, games, models, or the modern world.`;

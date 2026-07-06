@@ -7,13 +7,9 @@ message when done. Sizes: S ≈ one sitting, M ≈ a focused session.
 
 ## Art & world
 
-1. **[M] Second settlement: Eastmarch camp.** Generalize `VILLAGE`/`inVillage` into
-   `SETTLEMENTS = [{layout, x1, y1, safe}]` (loop in `inVillage`, hills/forest/spawn
-   exclusions, sanctuary). Then author a small palisade camp (~9x8 layout) at the east
-   road's end (~x 78–86, y 32–40) with a campfire prop (new painter + flickering decor
-   sprite), 2 tents (new wall type or props), and one villager ("Marta, wolf-hunter",
-   specialty: wolf locations). Acceptance: monsters can't enter the camp; Marta talks
-   via LLM; both settlements flatten terrain (extend `buildHeights` village-shelf loop).
+1. ~~**[M] Second settlement: Eastmarch camp.**~~ **DONE** — `SETTLEMENTS` list drives
+   `inVillage`/stamp/props/heights; palisade camp at x78–86 y32–39 with campfire+flame
+   decor, two hide tents, and Marta the Wolf-hunter (`st: 1`, specialty `wolves`).
 2. **[S] Tile-type terrain detail.** The 3D terrain multiplies one noise texture over
    vertex colors. Upgrade: 2x2 atlas canvas (grass/dirt/cobble/water-bed detail), pick
    UV quadrant per tile in `buildTerrain`. Watch seams at tile borders (inset UVs 1px).
@@ -60,4 +56,4 @@ message when done. Sizes: S ≈ one sitting, M ≈ a focused session.
 
 Engine swap to three.js terrain · schools of magic + scrolls + buffs · FX system ·
 save/load (seeded) · shop · quest #1 · MM7 UI (inventory/spellbook/portraits) ·
-LLM villagers · Fly/Water Walk · village with roofed buildings.
+LLM villagers · Fly/Water Walk · village with roofed buildings · Eastmarch camp (2nd settlement).

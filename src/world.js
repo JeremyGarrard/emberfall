@@ -35,8 +35,6 @@ const VILLAGE_LAYOUT = [
   'F.VVVVV..BBBBBF',
   'FFFFFFFFFFFFFFF',
 ];
-const VILLAGE = { x1: 4, y1: 28, x2: 4 + 14, y2: 28 + 13 };
-
 // building footprints (layout-relative, inclusive) — walls come from the tile
 // stamp; these rects give each building its gabled roof
 const BUILDINGS = [
@@ -46,6 +44,33 @@ const BUILDINGS = [
   { x1: 9, y1: 9, x2: 13, y2: 12, color: 0x7a3a30 }, // trading post
 ];
 
+// Eastmarch — a little palisade hunting camp at the east road's end. No roofed
+// buildings; two tents and a campfire are billboard props (see CHAR_PROP).
+//   F palisade   G gate (west, onto the road)   K campfire   X tent
+//   , trodden dirt   . grass
+const CAMP_LAYOUT = [
+  'FFFFFFFFF',
+  'F,,,,,,,F',
+  'F,X,,,X,F',
+  'F,,,,,,,F',
+  'G,,,K,,,F',
+  'F,,,,,,,F',
+  'F,,,,,,,F',
+  'FFFFFFFFF',
+];
+
+// every walled, monster-proof settlement. Stamped over the wilderness in order;
+// inVillage/heights/props all loop this list (VILLAGE aliases settlement 0).
+const SETTLEMENTS = [
+  { layout: VILLAGE_LAYOUT, x1: 4, y1: 28 },
+  { layout: CAMP_LAYOUT, x1: 78, y1: 32 },
+];
+for (const s of SETTLEMENTS) {
+  s.x2 = s.x1 + s.layout[0].length - 1;
+  s.y2 = s.y1 + s.layout.length - 1;
+}
+const VILLAGE = SETTLEMENTS[0];  // the road & terrain shelf key off Emberfall
+
 // billboard proportions: bigger vDiv = smaller sprite (bottom stays on the floor)
 const SPRITE_META = {
   slime: { vDiv: 2.0 }, goblin: { vDiv: 1.45 }, wolf: { vDiv: 1.55 },
@@ -53,7 +78,8 @@ const SPRITE_META = {
   tree: { vDiv: 0.85 }, pine: { vDiv: 0.8 }, sword: { vDiv: 1.9 },
   anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
-  innkeep: { vDiv: 1.35 },
+  innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
+  campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
 };
 
 function makeArt(key, draw, size = 32) {
@@ -506,6 +532,40 @@ class BootScene extends Phaser.Scene {
       g.fillStyle = '#3a3d44'; g.fillRect(11, 0, 10, 2); g.fillRect(11, 10, 10, 2);
     });
 
+    // -- Eastmarch camp props --
+    makeArt('campfire', g => {
+      ell(g, 16, 27, 12, 4, '#4a4e56');                     // ring of stones (shadow)
+      for (let i = 0; i < 7; i++) {                          // stone ring
+        const a = i / 7 * Math.PI * 2;
+        ell(g, 16 + Math.cos(a) * 11, 27 + Math.sin(a) * 3.5, 3, 2.2, '#9a9ea8');
+      }
+      g.fillStyle = '#4a3418';                               // crossed logs
+      g.save(); g.translate(16, 24); g.rotate(0.5);
+      g.fillRect(-11, -2, 22, 4); g.restore();
+      g.save(); g.translate(16, 24); g.rotate(-0.5);
+      g.fillStyle = '#5a4020'; g.fillRect(-11, -2, 22, 4); g.restore();
+      ell(g, 11, 23, 2, 2, '#2a1c0e'); ell(g, 21, 25, 2, 2, '#2a1c0e'); // log ends
+      ell(g, 16, 22, 6, 3, '#e07a20');                       // embers glow
+      ell(g, 16, 22, 3, 1.6, '#ffc040');
+    });
+    // the flame — a decor sprite; R3D pulses its opacity for the flicker
+    makeArt('flame', g => {
+      tri(g, [16, 2, 8, 26, 24, 26], '#ff7418');
+      tri(g, [16, 8, 10, 26, 22, 26], '#ffb020');
+      tri(g, [16, 14, 12, 27, 20, 27], '#ffe268');
+      ell(g, 16, 24, 3, 3, '#fff2b8');
+    });
+    // hunter's tent — hide stretched over a ridgepole
+    makeArt('tent', g => {
+      tri(g, [32, 8, 6, 56, 58, 56], '#6a5230');             // main canvas
+      tri(g, [32, 8, 20, 56, 44, 56], '#463218');            // shaded doorway slit
+      g.fillStyle = '#8a6c40';                                // lit left face
+      tri(g, [32, 8, 6, 56, 20, 56], '#7a5e38');
+      g.strokeStyle = '#2a1e10'; g.lineWidth = 2;             // ridgepole overhang
+      g.beginPath(); g.moveTo(32, 6); g.lineTo(32, 12); g.stroke();
+      g.fillStyle = '#3a2a16'; g.fillRect(4, 55, 56, 3);      // ground line
+    }, 64);
+
     // -- villagers --
     makeArt('innkeep', g => {
       g.fillStyle = '#7a4a3a'; g.fillRect(9, 14, 14, 16);   // dress
@@ -545,6 +605,17 @@ class BootScene extends Phaser.Scene {
       ell(g, 16, 6.5, 8, 2.5, '#4a3527');
       g.fillStyle = '#4a3527'; g.fillRect(12, 2, 8, 5);
       ell(g, 25, 24, 3.5, 4, '#d9a520');
+    });
+    makeArt('marta', g => {
+      g.fillStyle = '#4d5b3a'; g.fillRect(9, 14, 14, 16);     // green huntress coat
+      g.fillStyle = '#6b5a3a'; tri(g, [7, 30, 16, 13, 25, 30], '#6b5a3a'); // fur mantle
+      ell(g, 16, 9.5, 5.5, 5.5, '#d8a878');
+      tri(g, [9, 11, 16, 1, 23, 11], '#3a4a28');              // hood
+      g.fillStyle = '#7a6038'; g.fillRect(12, 12, 8, 3);      // hair fringe
+      g.strokeStyle = '#5a4026'; g.lineWidth = 2;             // slung bow
+      g.beginPath(); g.arc(25, 18, 9, -1.1, 1.1); g.stroke();
+      g.strokeStyle = '#d8d4ca'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(25, 9.2); g.lineTo(25, 26.8); g.stroke();
     });
 
     // ================= MM7-style UI art =================
@@ -1195,19 +1266,22 @@ class WorldScene extends Phaser.Scene {
       D: T_DOOR, n: T_TIMBER_WIN, m: T_STONE_WIN, o: T_PLANK_WIN,
       a: T_SIGN_TAVERN, b: T_SIGN_SMITH, c: T_SIGN_TRADE, h: T_BANNER, C: T_CHIMNEY,
       ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
+      K: T_DIRT, X: T_DIRT, // Eastmarch: campfire & tents stand on dirt (props supply the art)
     };
     this.doors = [];
-    VILLAGE_LAYOUT.forEach((row, ry) => {
-      for (let rx = 0; rx < row.length; rx++) {
-        this.map[VILLAGE.y1 + ry][VILLAGE.x1 + rx] = CHAR_TILE[row[rx]] || T_GRASS;
-        if (row[rx] === 'D') this.doors.push({ x: VILLAGE.x1 + rx, y: VILLAGE.y1 + ry, open: false });
-      }
-    });
+    for (const s of SETTLEMENTS) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          this.map[s.y1 + ry][s.x1 + rx] = CHAR_TILE[row[rx]] || T_GRASS;
+          if (row[rx] === 'D') this.doors.push({ x: s.x1 + rx, y: s.y1 + ry, open: false });
+        }
+      });
+    }
 
-    // the east road: a clear corridor from the gate deep into the vale,
-    // fording the river and winding through the hills
+    // the east road: a clear corridor from the village gate to Eastmarch's,
+    // fording the river and winding through the hills (stops at the camp's west wall)
     const roadY = VILLAGE.y1 + 8; // the gate row
-    for (let x = VILLAGE.x2 + 1; x <= 82 && x < MAP_W - 1; x++) {
+    for (let x = VILLAGE.x2 + 1; x < SETTLEMENTS[1].x1 && x < MAP_W - 1; x++) {
       for (let y = roadY - 1; y <= roadY + 1; y++) {
         const t = this.map[y][x];
         if (y === roadY) this.map[y][x] = T_DIRT;
@@ -1247,13 +1321,15 @@ class WorldScene extends Phaser.Scene {
       }
     }
 
-    // the village sits on a leveled shelf; fade the flattening outward
-    for (let y = 0; y < H1; y++) {
-      for (let x = 0; x < W1; x++) {
-        const dx = Math.max(VILLAGE.x1 - x, 0, x - (VILLAGE.x2 + 1));
-        const dy = Math.max(VILLAGE.y1 - y, 0, y - (VILLAGE.y2 + 1));
-        const d = Math.hypot(dx, dy);
-        if (d < 5) h[y][x] *= d / 5;
+    // each settlement sits on a leveled shelf; fade the flattening outward
+    for (const st of SETTLEMENTS) {
+      for (let y = 0; y < H1; y++) {
+        for (let x = 0; x < W1; x++) {
+          const dx = Math.max(st.x1 - x, 0, x - (st.x2 + 1));
+          const dy = Math.max(st.y1 - y, 0, y - (st.y2 + 1));
+          const d = Math.hypot(dx, dy);
+          if (d < 5) h[y][x] *= d / 5;
+        }
       }
     }
     // keep the east road a gentle valley route
@@ -1306,9 +1382,11 @@ class WorldScene extends Phaser.Scene {
       Math.abs(this.terrainH(x, y + d) - this.terrainH(x, y - d)));
   }
 
+  // true inside (or within pad of) any walled settlement — the monster sanctuary
   inVillage(x, y, pad = 0) {
-    return x >= VILLAGE.x1 - pad && x <= VILLAGE.x2 + 1 + pad &&
-           y >= VILLAGE.y1 - pad && y <= VILLAGE.y2 + 1 + pad;
+    return SETTLEMENTS.some(s =>
+      x >= s.x1 - pad && x <= s.x2 + 1 + pad &&
+      y >= s.y1 - pad && y <= s.y2 + 1 + pad);
   }
 
   buildEntities() {
@@ -1364,18 +1442,26 @@ class WorldScene extends Phaser.Scene {
     const smoke = add('decor', 'smoke', vx + 11, vy + 2); // above the smithy chimney
     smoke.zOff = 1.85;
 
-    // props straight from the village layout (single source of truth)
-    const CHAR_PROP = { U: 'fountain', W: 'well', L: 'lamp' };
-    VILLAGE_LAYOUT.forEach((row, ry) => {
-      for (let rx = 0; rx < row.length; rx++) {
-        const kind = CHAR_PROP[row[rx]];
-        if (kind === 'fountain') add('fountain', 'fountain', VILLAGE.x1 + rx, VILLAGE.y1 + ry);
-        else if (kind) add('prop', kind, VILLAGE.x1 + rx, VILLAGE.y1 + ry);
-      }
-    });
+    // props straight from the settlement layouts (single source of truth)
+    const CHAR_PROP = { U: 'fountain', W: 'well', L: 'lamp', K: 'campfire', X: 'tent' };
+    for (const s of SETTLEMENTS) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          const kind = CHAR_PROP[row[rx]];
+          const gx = s.x1 + rx, gy = s.y1 + ry;
+          if (kind === 'fountain') add('fountain', 'fountain', gx, gy);
+          else if (kind === 'campfire') {
+            add('prop', 'campfire', gx, gy);
+            const fire = add('decor', 'flame', gx, gy); // flickers via R3D opacity pulse
+            fire.zOff = 0.3;
+          } else if (kind) add('prop', kind, gx, gy);
+        }
+      });
+    }
 
     for (const v of VILLAGERS) {
-      const e = add('villager', v.art, vx + v.spot[0], vy + v.spot[1]);
+      const st = SETTLEMENTS[v.st || 0];
+      const e = add('villager', v.art, st.x1 + v.spot[0], st.y1 + v.spot[1]);
       e.name = v.name;
       e.villager = v;
       e.chat = [];
@@ -1404,7 +1490,8 @@ class WorldScene extends Phaser.Scene {
 
     // Bram's stolen blade: a goblin camp far east, across the river ford
     let sx = 76, sy = VILLAGE.y1 + 8, swordGuard = 0;
-    while (swordGuard++ < 500 && (this.map[sy][sx] !== T_GRASS || this.entityAt(sx, sy))) {
+    while (swordGuard++ < 500 &&
+           (this.map[sy][sx] !== T_GRASS || this.inVillage(sx, sy, 1) || this.entityAt(sx, sy))) {
       sx = 70 + gri(0, 16); sy = 28 + gri(0, 18);
     }
     add('item', 'sword', sx, sy);
@@ -1413,7 +1500,7 @@ class WorldScene extends Phaser.Scene {
       if (guards >= 3) break;
       const gx2 = sx + dx, gy2 = sy + dy;
       if (gx2 > 1 && gy2 > 1 && gx2 < MAP_W - 2 && gy2 < MAP_H - 2 &&
-          this.map[gy2][gx2] === T_GRASS && !this.entityAt(gx2, gy2)) {
+          this.map[gy2][gx2] === T_GRASS && !this.inVillage(gx2, gy2, 1) && !this.entityAt(gx2, gy2)) {
         add('enemy', 'goblin', gx2, gy2);
         guards++;
       }

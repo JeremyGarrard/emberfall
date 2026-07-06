@@ -184,6 +184,15 @@ const VILLAGERS = [
     specialty: 'rumors',
     greeting: 'Come in, loves, mind the step. The Stoat hears everything worth hearing — and I pour most of it back out.',
   },
+  {
+    // st: 1 = the Eastmarch camp; spot is relative to that settlement's stamp
+    id: 'marta', name: 'Marta the Wolf-hunter', art: 'marta', st: 1, spot: [4, 5],
+    home: 'my fire at Eastmarch camp',
+    locale: 'You keep Eastmarch, a small palisaded hunting camp at the east road\'s end, its campfire always burning and two hide tents pitched against the wind. You know Emberfall village to the west, but the wilds are your home.',
+    persona: 'a weathered, watchful wolf-hunter who camps at the vale\'s eastern edge. You speak in clipped, practical sentences, track the dire wolves for a living, and trust your hounds more than most folk.',
+    specialty: 'wolves',
+    greeting: 'Hold there. You smell of the road, not of wolf — good. Warm yourself by the fire, or ask me where the packs are running.',
+  },
 ];
 
 // real-time combat stats: speed = chase tiles/sec, cd = ms between attacks
