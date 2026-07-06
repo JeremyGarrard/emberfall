@@ -99,10 +99,17 @@ potions or gems. The party bar shows painted portraits, MM7-style.
   road, take the camp, walk over the blade, and bring it home. Reward: party XP and a new
   spell — **Fly** — for Malwick (R/X or PgUp/PgDn to rise and dive, cast again to land;
   melee monsters can't touch an airborne party). A quest tracker sits above the party bar.
-- **Magic** — every hero knows spells from a shared registry (`SPELLS` in `src/data.js`).
-  Keys 1–4 cast each hero's *readied* spell; **B** opens the spellbook to click a different
-  one into the slot. Frost Nova damages and *slows* everything around the party — watch
-  wolves crawl.
+- **Schools of magic** — eight MM7-style schools: Fire, Air, Water, Earth, Body, Spirit,
+  Light, and Dark, with 24 spells across them. Chain lightning, knockback thunderclaps,
+  burning damage-over-time, roots that pin charging wolves, true-damage spirit strikes,
+  vampiric drains, in-field Raise Dead, Water Walk (cross rivers without Fly), timed party
+  buffs (Bless, Stone Skin, Hour of Power — timers show by the HUD), and Armageddon, which
+  smites every monster in the vale and singes your own party, as is right and proper.
+- **Learning magic** — each hero has MM7-authentic school access (Roderick trusts steel;
+  Wren dabbles in Air/Water; Serena holds Body/Spirit/Light; Malwick commands the elements
+  and Dark). New spells come from **scrolls**: Odo sells six, chests hide the rest, and
+  the Armageddon scroll only turns up in the deep east. Keys 1–4 cast each hero's *readied*
+  spell; **B** opens the spellbook — hero tabs, school-grouped pages, click to ready.
 
 ### Controls
 

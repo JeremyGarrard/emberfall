@@ -748,11 +748,207 @@ class BootScene extends Phaser.Scene {
       g.fillStyle = '#9ad8f0'; ell(g, 24, 10, 3, 3, '#9ad8f0');
     });
 
+    // -- school spell icons: colored disc + glyph --
+    const spellDisc = (g, color) => {
+      g.fillStyle = color;
+      g.beginPath(); g.arc(16, 16, 13, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.16)';
+      g.beginPath(); g.arc(12, 11, 6, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(16, 16, 13, 0, Math.PI * 2); g.stroke();
+    };
+    makeArt('ic_firebolt', g => {
+      spellDisc(g, '#8a2a10');
+      tri(g, [16, 5, 9, 20, 23, 20], '#f0a04a');
+      tri(g, [16, 9, 12, 19, 20, 19], '#f8d060');
+      ell(g, 16, 22, 5, 4, '#f0a04a');
+    });
+    makeArt('ic_ringfire', g => {
+      spellDisc(g, '#6a2008');
+      g.strokeStyle = '#f0a04a'; g.lineWidth = 3;
+      g.beginPath(); g.arc(16, 17, 7, 0, Math.PI * 2); g.stroke();
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3;
+        tri(g, [16 + Math.cos(a) * 10, 17 + Math.sin(a) * 10 - 3,
+                16 + Math.cos(a) * 8 - 2, 17 + Math.sin(a) * 8 + 2,
+                16 + Math.cos(a) * 8 + 2, 17 + Math.sin(a) * 8 + 2], '#f8d060');
+      }
+    });
+    makeArt('ic_spark', g => {
+      spellDisc(g, '#1a4a70');
+      g.fillStyle = '#f8f0a0';
+      g.beginPath();
+      g.moveTo(19, 5); g.lineTo(10, 17); g.lineTo(15, 17);
+      g.lineTo(12, 27); g.lineTo(22, 14); g.lineTo(17, 14); g.closePath(); g.fill();
+    });
+    makeArt('ic_clap', g => {
+      spellDisc(g, '#2a5a80');
+      ell(g, 16, 16, 4, 4, '#f8f0a0');
+      g.strokeStyle = '#c8e8f8'; g.lineWidth = 2;
+      for (const r of [7, 11]) {
+        g.beginPath(); g.arc(16, 16, r, -0.6, 0.6); g.stroke();
+        g.beginPath(); g.arc(16, 16, r, Math.PI - 0.6, Math.PI + 0.6); g.stroke();
+      }
+    });
+    makeArt('ic_icebolt', g => {
+      spellDisc(g, '#1a3a6a');
+      tri(g, [16, 4, 11, 22, 21, 22], '#9ad8f0');
+      tri(g, [16, 8, 13, 20, 19, 20], '#e8f6ff');
+      tri(g, [16, 28, 11, 22, 21, 22], '#6ab0e0');
+    });
+    makeArt('ic_wwalk', g => {
+      spellDisc(g, '#204a8a');
+      g.strokeStyle = '#9ad8f0'; g.lineWidth = 2.5;
+      for (const y of [13, 19, 25]) {
+        g.beginPath();
+        g.moveTo(7, y); g.quadraticCurveTo(11, y - 4, 16, y); g.quadraticCurveTo(21, y + 4, 25, y);
+        g.stroke();
+      }
+      ell(g, 16, 9, 3, 2, '#f0e6c8');
+    });
+    makeArt('ic_rock', g => {
+      spellDisc(g, '#5a4a20');
+      g.fillStyle = '#8a8f98';
+      g.beginPath();
+      g.moveTo(9, 21); g.lineTo(12, 10); g.lineTo(20, 8); g.lineTo(24, 16); g.lineTo(20, 24); g.lineTo(11, 24);
+      g.closePath(); g.fill();
+      g.fillStyle = '#b8bcc4'; g.fillRect(13, 11, 5, 4);
+      g.fillStyle = '#5a5e66'; g.fillRect(16, 17, 6, 3);
+    });
+    makeArt('ic_stone', g => {
+      spellDisc(g, '#6a5a28');
+      g.fillStyle = '#8a8f98';
+      g.beginPath();
+      g.moveTo(16, 5); g.lineTo(25, 10); g.lineTo(25, 20); g.lineTo(16, 27); g.lineTo(7, 20); g.lineTo(7, 10);
+      g.closePath(); g.fill();
+      g.fillStyle = '#b8bcc4'; g.fillRect(10, 9, 12, 3);
+      g.strokeStyle = '#5a5e66'; g.lineWidth = 2; g.strokeRect(11, 13, 10, 8);
+    });
+    makeArt('ic_roots', g => {
+      spellDisc(g, '#4a3a14');
+      g.strokeStyle = '#8a6238'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(16, 27); g.lineTo(16, 14); g.stroke();
+      g.lineWidth = 2;
+      g.beginPath(); g.moveTo(16, 20); g.quadraticCurveTo(9, 16, 7, 9); g.stroke();
+      g.beginPath(); g.moveTo(16, 18); g.quadraticCurveTo(23, 14, 25, 7); g.stroke();
+      g.beginPath(); g.moveTo(16, 14); g.quadraticCurveTo(13, 9, 14, 5); g.stroke();
+      g.fillStyle = '#5fa852';
+      ell(g, 7, 8, 2.5, 2, '#5fa852'); ell(g, 25, 6, 2.5, 2, '#5fa852'); ell(g, 14, 5, 2, 2, '#5fa852');
+    });
+    makeArt('ic_regen', g => {
+      spellDisc(g, '#7a2020');
+      g.fillStyle = '#f07070';
+      g.beginPath();
+      g.moveTo(16, 26);
+      g.bezierCurveTo(4, 16, 9, 6, 16, 12);
+      g.bezierCurveTo(23, 6, 28, 16, 16, 26);
+      g.fill();
+      g.fillStyle = '#ffffff'; g.fillRect(14, 13, 4, 9); g.fillRect(11.5, 15.5, 9, 4);
+    });
+    makeArt('ic_gheal', g => {
+      spellDisc(g, '#8a3030');
+      g.fillStyle = '#f0e6c8';
+      for (const [cx, cy, s] of [[16, 11, 4], [10, 21, 3], [22, 21, 3]]) {
+        g.fillRect(cx - 1.5, cy - s, 3, s * 2);
+        g.fillRect(cx - s, cy - 1.5, s * 2, 3);
+      }
+    });
+    makeArt('ic_bless', g => {
+      spellDisc(g, '#6a6a9a');
+      g.fillStyle = '#f8f0c0';
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+        tri(g, [16 + Math.cos(a) * 10, 16 + Math.sin(a) * 10,
+                16 + Math.cos(a + 2.2) * 4, 16 + Math.sin(a + 2.2) * 4,
+                16 + Math.cos(a - 2.2) * 4, 16 + Math.sin(a - 2.2) * 4]);
+      }
+      ell(g, 16, 16, 3, 3, '#ffffff');
+    });
+    makeArt('ic_lash', g => {
+      spellDisc(g, '#50508a');
+      g.strokeStyle = '#e8e8f8'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(8, 25); g.quadraticCurveTo(20, 22, 22, 12); g.quadraticCurveTo(23, 7, 19, 7);
+      g.stroke();
+      ell(g, 24, 9, 3, 3, '#ffffff');
+    });
+    makeArt('ic_raise', g => {
+      spellDisc(g, '#3a3a6a');
+      g.fillStyle = '#e8e8f8';
+      ell(g, 16, 11, 4, 4, '#e8e8f8');
+      tri(g, [16, 14, 10, 27, 22, 27], '#e8e8f8');
+      g.strokeStyle = '#f8f0c0'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(7, 22); g.lineTo(7, 14); g.stroke();
+      g.beginPath(); g.moveTo(25, 22); g.lineTo(25, 14); g.stroke();
+      tri(g, [7, 11, 4, 16, 10, 16], '#f8f0c0');
+      tri(g, [25, 11, 22, 16, 28, 16], '#f8f0c0');
+    });
+    makeArt('ic_sunray', g => {
+      spellDisc(g, '#8a6a10');
+      ell(g, 16, 16, 6, 6, '#f8e080');
+      g.strokeStyle = '#f8e080'; g.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        g.beginPath();
+        g.moveTo(16 + Math.cos(a) * 8, 16 + Math.sin(a) * 8);
+        g.lineTo(16 + Math.cos(a) * 12, 16 + Math.sin(a) * 12);
+        g.stroke();
+      }
+    });
+    makeArt('ic_prism', g => {
+      spellDisc(g, '#7a6a20');
+      tri(g, [16, 6, 7, 24, 25, 24], '#e8e8f0');
+      const cols = ['#e05020', '#f0d060', '#3ecf5a', '#3070d0'];
+      cols.forEach((c, i) => {
+        g.strokeStyle = c; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(21, 18 + i); g.lineTo(29, 14 + i * 3); g.stroke();
+      });
+    });
+    makeArt('ic_hour', g => {
+      spellDisc(g, '#9a7a10');
+      g.fillStyle = '#f8d040';
+      g.beginPath();
+      g.moveTo(7, 24); g.lineTo(7, 12); g.lineTo(12, 17); g.lineTo(16, 8); g.lineTo(20, 17); g.lineTo(25, 12); g.lineTo(25, 24);
+      g.closePath(); g.fill();
+      g.fillStyle = '#c8352a'; ell(g, 16, 20, 2.5, 2.5, '#c8352a');
+    });
+    makeArt('ic_drain', g => {
+      spellDisc(g, '#4a1a5a');
+      g.fillStyle = '#c83a5a';
+      g.beginPath();
+      g.moveTo(16, 6);
+      g.bezierCurveTo(8, 16, 10, 24, 16, 25);
+      g.bezierCurveTo(22, 24, 24, 16, 16, 6);
+      g.fill();
+      g.fillStyle = '#f07090'; ell(g, 13, 16, 2, 3.5, '#f07090');
+    });
+    makeArt('ic_curse', g => {
+      spellDisc(g, '#3a1a4a');
+      ell(g, 16, 14, 8, 9, '#c8a8e0');
+      g.fillStyle = '#c8a8e0'; g.fillRect(11, 20, 10, 6);
+      g.fillStyle = '#3a1a4a';
+      ell(g, 12.5, 13, 2.5, 3, '#3a1a4a'); ell(g, 19.5, 13, 2.5, 3, '#3a1a4a');
+      g.fillRect(13, 22, 2, 3); g.fillRect(17, 22, 2, 3);
+    });
+    makeArt('ic_arma', g => {
+      spellDisc(g, '#401010');
+      g.strokeStyle = '#f0a04a'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(24, 5); g.lineTo(13, 18); g.stroke();
+      g.strokeStyle = '#f8d060'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(27, 8); g.lineTo(17, 19); g.stroke();
+      ell(g, 11, 21, 5, 5, '#f0a04a');
+      ell(g, 10, 20, 2.5, 2.5, '#f8f0a0');
+      g.strokeStyle = '#c86a2a'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(5, 27); g.lineTo(27, 27); g.stroke();
+    });
+
     // register everything the Phaser UI needs as textures
     ['panel_ui', 'panel_hud', 'slot',
      'pt_roderick', 'pt_wren', 'pt_serena', 'pt_malwick',
      'it_sword', 'it_bsword', 'it_bow', 'it_leather', 'it_chain', 'it_hpot', 'it_mpot', 'it_gem', 'it_blade',
      'ic_cleave', 'ic_dshot', 'ic_heal', 'ic_fire', 'ic_frost', 'ic_fly',
+     'ic_firebolt', 'ic_ringfire', 'ic_spark', 'ic_clap', 'ic_icebolt', 'ic_wwalk',
+     'ic_rock', 'ic_stone', 'ic_roots', 'ic_regen', 'ic_gheal', 'ic_bless',
+     'ic_lash', 'ic_raise', 'ic_sunray', 'ic_prism', 'ic_hour', 'ic_drain', 'ic_curse', 'ic_arma',
     ].forEach(k => this.textures.addCanvas(k, ART[k]));
 
     this.scene.start('World');
@@ -816,6 +1012,13 @@ class WorldScene extends Phaser.Scene {
     this.landing = false;
     this.flyCaster = -1;
     this.flyDrainAt = 0;
+
+    // party buffs (expiry timestamps; effect sizes are fixed per spell)
+    this.buffs = { atkUntil: 0, defUntil: 0, hasteUntil: 0, regenUntil: 0, waterwalkUntil: 0 };
+    this.regenNext = 0;
+    this.sinkNext = 0;
+    this._buffStr = '';
+
     if (this.save) {
       this.px = this.save.px; this.py = this.save.py; this.angle = this.save.angle || 0;
       this.flying = !!this.save.flying;
@@ -872,6 +1075,11 @@ class WorldScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '12px', color: '#9ad8ff',
       backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 6, y: 2 },
     }).setDepth(1000);
+
+    this.buffText = this.add.text(948, 470, '', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#8ae8b0',
+      backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 6, y: 2 },
+    }).setOrigin(1, 0).setDepth(1000).setAlpha(0.95);
 
     this.buildMinimap();
     this.buildHUD();
@@ -1201,21 +1409,23 @@ class WorldScene extends Phaser.Scene {
 
   entityAt(gx, gy) { return this.entities.find(e => e.gx === gx && e.gy === gy); }
 
-  walkableAt(gx, gy) {
+  walkableAt(gx, gy, allowWater) {
     if (gx < 0 || gy < 0 || gx >= MAP_W || gy >= MAP_H) return false;
     const t = this.map[gy][gx];
-    return t <= T_COBBLE || t === T_WOOD;
+    return t <= T_COBBLE || t === T_WOOD || (allowWater && t === T_WATER);
   }
 
   // ---------- movement & collision ----------
 
   canStand(x, y) {
     const r = 0.28;
-    if (!(this.walkableAt(Math.floor(x - r), Math.floor(y - r)) &&
-          this.walkableAt(Math.floor(x + r), Math.floor(y - r)) &&
-          this.walkableAt(Math.floor(x - r), Math.floor(y + r)) &&
-          this.walkableAt(Math.floor(x + r), Math.floor(y + r)))) return false;
-    if (this.slopeAt(x, y) > 0.85) return false; // too steep to climb
+    // Water Walk (or already sinking mid-river) lets the party tread water
+    const aw = this.time.now < this.buffs.waterwalkUntil || this._onWater;
+    if (!(this.walkableAt(Math.floor(x - r), Math.floor(y - r), aw) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y - r), aw) &&
+          this.walkableAt(Math.floor(x - r), Math.floor(y + r), aw) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y + r), aw))) return false;
+    if (!aw && this.slopeAt(x, y) > 0.85) return false; // too steep to climb
     for (const e of this.entities) {
       if ((e.kind === 'fountain' || e.kind === 'villager') && Math.hypot(e.x - x, e.y - y) < 0.55) return false;
       if (e.kind === 'prop' && Math.hypot(e.x - x, e.y - y) < 0.45) return false;
@@ -1388,21 +1598,31 @@ class WorldScene extends Phaser.Scene {
       if (K.JustDown(k.FOUR)) this.castSkill(3, time);
 
       // enemy AI: hunt when close and visible, otherwise drift about
-      for (const e of this.entities) {
-        if (e.kind !== 'enemy') continue;
+      // (iterate a copy — burning foes can die and splice mid-loop)
+      for (const e of [...this.entities]) {
+        if (e.kind !== 'enemy' || e.hp <= 0) continue;
+        // burning ticks (Fire school)
+        if (e.burnUntil && time < e.burnUntil && time > (e.burnNext || 0)) {
+          e.burnNext = time + 1000;
+          this.damageEnemy(e, 3);
+          if (e.hp <= 0) continue;
+        }
         const pd = Math.hypot(this.px - e.x, this.py - e.y);
         e.aggro = pd < 7 && this.lineOfSight(e.x, e.y, this.px, this.py);
         if (e.aggro) {
+          const rooted = time < (e.rootUntil || 0);
           if (pd > 1.15) {
-            const step = (time < (e.slowUntil || 0) ? e.speed * 0.35 : e.speed) * dt;
-            const nx = e.x + (this.px - e.x) / pd * step;
-            const ny = e.y + (this.py - e.y) / pd * step;
-            if (this.enemyCanStand(nx, e.y, e)) e.x = nx;
-            if (this.enemyCanStand(e.x, ny, e)) e.y = ny;
-            // only adopt a new home cell outside the village — the idle
-            // glide is unchecked, so a cell inside would pull them through the walls
-            const cgx = Math.floor(e.x), cgy = Math.floor(e.y);
-            if (!this.inVillage(cgx + 0.5, cgy + 0.5, 0.4)) { e.gx = cgx; e.gy = cgy; }
+            if (!rooted) {
+              const step = (time < (e.slowUntil || 0) ? e.speed * 0.35 : e.speed) * dt;
+              const nx = e.x + (this.px - e.x) / pd * step;
+              const ny = e.y + (this.py - e.y) / pd * step;
+              if (this.enemyCanStand(nx, e.y, e)) e.x = nx;
+              if (this.enemyCanStand(e.x, ny, e)) e.y = ny;
+              // only adopt a new home cell outside the village — the idle
+              // glide is unchecked, so a cell inside would pull them through the walls
+              const cgx = Math.floor(e.x), cgy = Math.floor(e.y);
+              if (!this.inVillage(cgx + 0.5, cgy + 0.5, 0.4)) { e.gx = cgx; e.gy = cgy; }
+            }
           } else if (time > e.nextAtk && this.eyeZ < 1.05) { // can't claw what flies
             e.nextAtk = time + e.cd;
             this.enemyStrike(e);
@@ -1416,6 +1636,32 @@ class WorldScene extends Phaser.Scene {
           }
         }
       }
+
+      // buff upkeep: regeneration ticks, water-walk sinking, HUD readout
+      this._onWater = (this.map[Math.floor(this.py)] || [])[Math.floor(this.px)] === T_WATER;
+      if (time < this.buffs.regenUntil && time > this.regenNext) {
+        this.regenNext = time + 2000;
+        let healed = false;
+        for (const h2 of GameData.party) {
+          if (h2.hp > 0 && h2.hp < h2.maxHp) { h2.hp = Math.min(h2.maxHp, h2.hp + 3); healed = true; }
+        }
+        if (healed) this.refreshHUD();
+      }
+      if (this._onWater && time >= this.buffs.waterwalkUntil && !this.flying && time > this.sinkNext) {
+        this.sinkNext = time + 1000;
+        GameData.party.forEach(h2 => { if (h2.hp > 0) h2.hp = Math.max(0, h2.hp - 2); });
+        this.toast('You are sinking! Make for the shore!');
+        this.refreshHUD();
+        if (GameData.party.every(h2 => h2.hp <= 0)) { this.partyWipe(); return; }
+      }
+      const bl = [];
+      if (time < this.buffs.atkUntil) bl.push('BLESS ' + Math.ceil((this.buffs.atkUntil - time) / 1000));
+      if (time < this.buffs.defUntil) bl.push('STONE ' + Math.ceil((this.buffs.defUntil - time) / 1000));
+      if (time < this.buffs.hasteUntil) bl.push('HASTE ' + Math.ceil((this.buffs.hasteUntil - time) / 1000));
+      if (time < this.buffs.regenUntil) bl.push('REGEN ' + Math.ceil((this.buffs.regenUntil - time) / 1000));
+      if (time < this.buffs.waterwalkUntil) bl.push('WWALK ' + Math.ceil((this.buffs.waterwalkUntil - time) / 1000));
+      const bs = bl.join('  ');
+      if (bs !== this._buffStr) { this._buffStr = bs; this.buffText.setText(bs); }
 
       const grounded = this.eyeZ < 0.7;
 
@@ -1459,6 +1705,18 @@ class WorldScene extends Phaser.Scene {
           const id = table[ri(0, table.length - 1)];
           if (invAdd(id)) itemMsg = ` + ${ITEM_TYPES[id].name}`;
         }
+        // rare finds: spell scrolls (doom itself only hides in the deep east)
+        if (Math.random() < 0.14) {
+          const far = dist(c.x, c.y, START.x, START.y) > 40;
+          const pool = Object.keys(SPELLS).filter(sid =>
+            SPELLS[sid].school !== 'martial' && sid !== 'fly' &&
+            (far || sid !== 'armageddon') &&
+            !GameData.party.some(h2 => h2.spells.includes(sid)));
+          if (pool.length) {
+            const sid = 'scroll_' + pool[ri(0, pool.length - 1)];
+            if (invAdd(sid)) itemMsg += ` + ${ITEM_TYPES[sid].name}`;
+          }
+        }
         this.toast(`You found a chest! +${gold} gold${itemMsg}`);
         this.refreshHUD();
         this.saveGame();
@@ -1483,8 +1741,9 @@ class WorldScene extends Phaser.Scene {
       this.pickTarget();
     }
 
-    // render the 3D view
-    this.camZ = this.terrainH(this.px, this.py) + this.eyeZ;
+    // render the 3D view (tread the water surface, not the riverbed)
+    const gz = this.terrainH(this.px, this.py);
+    this.camZ = (this._onWater ? Math.max(gz, -0.24) : gz) + this.eyeZ;
     R3D.render({
       px: this.px, py: this.py, camZ: this.camZ,
       angle: this.angle, pitch: this.pitch, time,
@@ -1562,15 +1821,36 @@ class WorldScene extends Phaser.Scene {
     let fired = 0;
     for (const h of GameData.party) {
       if (h.hp <= 0 || time < h.readyAt || d > h.range) continue;
-      h.readyAt = time + h.rec;
+      h.readyAt = time + h.rec * this.hasteMul();
       fired++;
-      this.damageEnemy(t, Math.max(1, heroAtk(h) + h.level + ri(0, 3) - t.def));
+      this.damageEnemy(t, Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - t.def));
       if (t.hp <= 0) break;
     }
     if (!fired && time > (this._attackMsgCd || 0)) {
       this.toast(d > 2.2 ? 'Too far for Roderick — the others are recovering...' : 'The party is recovering...');
       this._attackMsgCd = time + 1200;
     }
+  }
+
+  // ---------- buffs & spell helpers ----------
+
+  buffAtk() { return this.time.now < this.buffs.atkUntil ? 2 : 0; }
+  buffDef() { return this.time.now < this.buffs.defUntil ? 3 : 0; }
+  hasteMul() { return this.time.now < this.buffs.hasteUntil ? 0.65 : 1; }
+
+  enemiesNear(cx, cy, r) {
+    return this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - cx, e.y - cy) < r);
+  }
+
+  knockback(e, dist) {
+    const dx = e.x - this.px, dy = e.y - this.py;
+    const d = Math.hypot(dx, dy) || 1;
+    for (let i = 0; i < Math.ceil(dist / 0.3); i++) {
+      const nx = e.x + (dx / d) * 0.3, ny = e.y + (dy / d) * 0.3;
+      if (!this.enemyCanStand(nx, ny, e)) break;
+      e.x = nx; e.y = ny;
+    }
+    e.gx = Math.floor(e.x); e.gy = Math.floor(e.y);
   }
 
   castSkill(idx, time) {
@@ -1593,16 +1873,16 @@ class WorldScene extends Phaser.Scene {
       case 'cleave': {
         const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 2.6);
         if (!victims.length) { this.toast('No foes within reach of the cleave!'); return; }
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + h.level + ri(0, 2) - v.def)));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + this.buffAtk() + h.level + ri(0, 2) - v.def)));
         ok = true;
         break;
       }
       case 'doubleshot': {
         if (!t || tDist > 9) { this.toast('No target in bow range!'); return; }
-        this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + h.level + ri(0, 2) - t.def));
+        this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - t.def));
         this.time.delayedCall(160, () => {
           if (t.hp > 0 && this.entities.includes(t)) {
-            this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + h.level + ri(0, 2) - t.def));
+            this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - t.def));
           }
         });
         ok = true;
@@ -1648,11 +1928,197 @@ class WorldScene extends Phaser.Scene {
         ok = true;
         break;
       }
+
+      // ---- fire ----
+      case 'firebolt': {
+        if (!t || tDist > 8) { this.toast('No target in range!'); return; }
+        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - t.def));
+        if (t.hp > 0) { t.burnUntil = time + 4000; t.burnNext = time + 1000; }
+        ok = true;
+        break;
+      }
+      case 'ringfire': {
+        const victims = this.enemiesNear(this.px, this.py, 4);
+        if (!victims.length) { this.toast('No foes near enough to burn!'); return; }
+        this.cameras.main.flash(160, 255, 110, 20);
+        victims.forEach(v => {
+          this.damageEnemy(v, Math.max(1, 8 + h.level * 2 + ri(0, 3) - v.def));
+          if (v.hp > 0) { v.burnUntil = time + 4000; v.burnNext = time + 1000; }
+        });
+        ok = true;
+        break;
+      }
+
+      // ---- air ----
+      case 'spark': {
+        if (!t || tDist > 9) { this.toast('No target in range!'); return; }
+        this.cameras.main.flash(80, 200, 230, 255);
+        const dmg = 5 + h.level * 2 + ri(0, 3);
+        this.damageEnemy(t, Math.max(1, dmg - t.def));
+        const chained = this.enemiesNear(t.x, t.y, 3).filter(v => v !== t && v.hp > 0).slice(0, 2);
+        chained.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(dmg * 0.6) - v.def)));
+        ok = true;
+        break;
+      }
+      case 'thunderclap': {
+        const victims = this.enemiesNear(this.px, this.py, 4);
+        if (!victims.length) { this.toast('No foes near enough!'); return; }
+        this.cameras.main.shake(160, 0.008);
+        victims.forEach(v => {
+          this.damageEnemy(v, Math.max(1, 4 + h.level + ri(0, 2)));
+          if (v.hp > 0) {
+            this.knockback(v, 2.5);
+            v.nextAtk = Math.max(v.nextAtk, time + 2500);
+          }
+        });
+        ok = true;
+        break;
+      }
+
+      // ---- water ----
+      case 'icebolt': {
+        if (!t || tDist > 9) { this.toast('No target in range!'); return; }
+        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - t.def));
+        if (t.hp > 0) t.slowUntil = time + 3000;
+        ok = true;
+        break;
+      }
+      case 'waterwalk': {
+        this.buffs.waterwalkUntil = time + 25000;
+        this.toast('The party may tread water awhile — mind the timer!');
+        ok = true;
+        break;
+      }
+
+      // ---- earth ----
+      case 'rockblast': {
+        if (!t || tDist > 8) { this.toast('No target in range!'); return; }
+        this.damageEnemy(t, Math.max(1, 8 + h.level * 3 + ri(0, 3) - t.def));
+        if (t.hp > 0) this.knockback(t, 2);
+        ok = true;
+        break;
+      }
+      case 'stoneskin': {
+        this.buffs.defUntil = time + 30000;
+        this.toast("The party's skin turns to stone: +3 DEF awhile.");
+        ok = true;
+        break;
+      }
+      case 'roots': {
+        const victims = this.enemiesNear(this.px, this.py, 5);
+        if (!victims.length) { this.toast('No foes near enough!'); return; }
+        victims.forEach(v => { v.rootUntil = time + 3500; });
+        this.toast(`Roots erupt — ${victims.length} foe${victims.length > 1 ? 's' : ''} held fast!`);
+        ok = true;
+        break;
+      }
+
+      // ---- body ----
+      case 'regen': {
+        this.buffs.regenUntil = time + 20000;
+        this.regenNext = 0;
+        this.toast("The party's wounds begin to knit closed.");
+        ok = true;
+        break;
+      }
+      case 'greatheal': {
+        const amt = 18 + h.level * 4;
+        GameData.party.forEach((x, i) => {
+          if (x.hp > 0 && x.hp < x.maxHp) {
+            x.hp = Math.min(x.maxHp, x.hp + amt);
+            this.floatText(12 + i * 236 + 113, 545, `+${amt}`, '#80ff9a');
+          }
+        });
+        ok = true;
+        break;
+      }
+
+      // ---- spirit ----
+      case 'bless': {
+        this.buffs.atkUntil = time + 30000;
+        this.toast('The party is blessed: +2 ATK awhile.');
+        ok = true;
+        break;
+      }
+      case 'spiritlash': {
+        if (!t || tDist > 8) { this.toast('No target in range!'); return; }
+        this.damageEnemy(t, 10 + h.level * 3 + ri(0, 2)); // no armor can turn it
+        ok = true;
+        break;
+      }
+      case 'raisedead': {
+        const fallen = GameData.party.find(x => x.hp <= 0);
+        if (!fallen) { this.toast('No one needs raising, gods be thanked.'); return; }
+        fallen.hp = Math.ceil(fallen.maxHp * 0.35);
+        this.floatText(12 + GameData.party.indexOf(fallen) * 236 + 113, 545, 'RISE', '#e8e8f8');
+        this.toast(`${fallen.name} staggers back to their feet!`);
+        ok = true;
+        break;
+      }
+
+      // ---- light ----
+      case 'sunray': {
+        if (!t || tDist > 10) { this.toast('No target in range!'); return; }
+        this.cameras.main.flash(100, 255, 240, 160);
+        this.damageEnemy(t, Math.max(1, 14 + h.level * 4 + ri(0, 4) - t.def));
+        if (t.hp > 0) t.nextAtk = Math.max(t.nextAtk, time + 3000);
+        ok = true;
+        break;
+      }
+      case 'prismatic': {
+        const victims = this.enemiesNear(this.px, this.py, 9)
+          .filter(v => this.lineOfSight(this.px, this.py, v.x, v.y, this.camZ));
+        if (!victims.length) { this.toast('No foes in sight!'); return; }
+        this.cameras.main.flash(180, 255, 255, 255);
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - v.def)));
+        GameData.party.forEach(x => { if (x.hp > 0) x.hp = Math.min(x.maxHp, x.hp + 6); });
+        ok = true;
+        break;
+      }
+      case 'hourofpower': {
+        this.buffs.atkUntil = time + 15000;
+        this.buffs.defUntil = time + 15000;
+        this.buffs.hasteUntil = time + 15000;
+        this.cameras.main.flash(150, 255, 230, 140);
+        this.toast('HOUR OF POWER! Blessed, stone-skinned, and swift.');
+        ok = true;
+        break;
+      }
+
+      // ---- dark ----
+      case 'drain': {
+        if (!t || tDist > 8) { this.toast('No target in range!'); return; }
+        const dmg = 8 + h.level * 3 + ri(0, 2);
+        this.damageEnemy(t, dmg);
+        h.hp = Math.min(h.maxHp, h.hp + dmg);
+        this.floatText(12 + idx * 236 + 113, 545, `+${dmg}`, '#c83a5a');
+        ok = true;
+        break;
+      }
+      case 'curse': {
+        if (!t || tDist > 9) { this.toast('No target in range!'); return; }
+        t.curseUntil = time + 8000;
+        t.slowUntil = time + 8000;
+        const p = this.projectEntity(t);
+        if (p) this.floatText(p.x, p.y, 'CURSED', '#c8a8e0');
+        ok = true;
+        break;
+      }
+      case 'armageddon': {
+        this.cameras.main.flash(400, 255, 60, 30);
+        this.cameras.main.shake(500, 0.012);
+        const all = this.entities.filter(x => x.kind === 'enemy');
+        all.forEach(v => this.damageEnemy(v, 25 + h.level * 5));
+        GameData.party.forEach(x => { if (x.hp > 0) x.hp = Math.max(1, x.hp - 8); });
+        this.toast(`ARMAGEDDON! The sky falls on ${all.length} monsters — and scorches the party.`);
+        ok = true;
+        break;
+      }
     }
 
     if (ok) {
       h.mp -= spell.cost;
-      h.readyAt = time + h.rec * 1.3;
+      h.readyAt = time + h.rec * 1.3 * this.hasteMul();
       this.refreshHUD();
     }
   }
@@ -1693,7 +2159,8 @@ class WorldScene extends Phaser.Scene {
     const targets = GameData.party.filter(h => h.hp > 0);
     if (!targets.length) return;
     const h = targets[ri(0, targets.length - 1)];
-    const dmg = Math.max(1, e.atk + ri(-1, 2) - heroDef(h));
+    const atkVal = this.time.now < (e.curseUntil || 0) ? Math.ceil(e.atk / 2) : e.atk;
+    const dmg = Math.max(1, atkVal + ri(-1, 2) - heroDef(h) - this.buffDef());
     h.hp = Math.max(0, h.hp - dmg);
     this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, `-${dmg}`, '#ff8080');
     this.tweens.add({ targets: this.dmgVignette, alpha: { from: 0.32, to: 0 }, duration: 300 });
@@ -1776,34 +2243,67 @@ class WorldScene extends Phaser.Scene {
 
   openSpellbook() {
     if (this.invOpen) this.closeInventory();
+    if (this.shopOpen) this.closeShop();
     this.sbOpen = true;
+    if (this.sbSel === undefined) this.sbSel = 0;
     for (const t of this.sbItems) t.destroy();
     this.sbItems = [];
     const add = o => { this.sbItems.push(o.setDepth(3001)); return o; };
+
+    // hero tabs down the left edge of the book
     GameData.party.forEach((h, i) => {
-      const x = 168 + i * 158;
-      add(this.add.image(x, 128, 'pt_' + h.name.toLowerCase()).setDisplaySize(56, 56));
-      add(this.add.rectangle(x, 128, 58, 58).setStrokeStyle(2, 0xc9a227));
-      add(this.add.text(x, 160, h.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#3a2c14', fontStyle: 'bold',
-      }).setOrigin(0.5, 0));
-      h.spells.forEach((id, j) => {
+      const x = 148, y = 130 + i * 82;
+      const sel = i === this.sbSel;
+      const tab = add(this.add.rectangle(x, y, 100, 74, 0x8a6f28, sel ? 0.3 : 0.07)
+        .setStrokeStyle(sel ? 3 : 1, sel ? 0xc9a227 : 0x6a5a38))
+        .setInteractive({ useHandCursor: true });
+      tab.on('pointerdown', () => { this.sbSel = i; this.openSpellbook(); });
+      add(this.add.image(x - 20, y, 'pt_' + h.name.toLowerCase()).setDisplaySize(46, 46));
+      add(this.add.text(x + 8, y - 16, h.name.slice(0, 8), {
+        fontFamily: 'monospace', fontSize: '11px', color: '#3a2c14', fontStyle: 'bold',
+      }));
+      add(this.add.text(x + 8, y + 0, h.spells.length + (h.spells.length > 1 ? ' spells' : ' spell'), {
+        fontFamily: 'monospace', fontSize: '9px', color: '#6a5636',
+      }));
+    });
+
+    // the selected hero's page: spells grouped by school
+    const h = GameData.party[this.sbSel];
+    let py = 106;
+    for (const sc of Object.keys(SCHOOLS)) {
+      const known = h.spells.filter(id => SPELLS[id].school === sc);
+      if (!known.length) continue;
+      add(this.add.text(224, py, SCHOOLS[sc].name.toUpperCase(), {
+        fontFamily: 'monospace', fontSize: '12px', fontStyle: 'bold',
+        color: SCHOOLS[sc].color, stroke: '#2a2014', strokeThickness: 2,
+      }));
+      py += 18;
+      known.forEach((id, j) => {
         const sp = SPELLS[id];
-        const y = 210 + j * 58;
+        const cx = 224 + (j % 3) * 202, cy = py + Math.floor(j / 3) * 46;
         const readied = h.quick === id;
-        const box = add(this.add.rectangle(x, y, 142, 50, readied ? 0x8a6f28 : 0x4a4032, readied ? 0.35 : 0.15)
+        const card = add(this.add.rectangle(cx + 94, cy + 20, 196, 40, readied ? 0x8a6f28 : 0x4a4032, readied ? 0.35 : 0.12)
           .setStrokeStyle(readied ? 3 : 1, readied ? 0xc9a227 : 0x6a5a38))
           .setInteractive({ useHandCursor: true });
-        box.on('pointerdown', () => { h.quick = id; this.refreshHUD(); this.openSpellbook(); });
-        add(this.add.image(x - 48, y, sp.icon).setDisplaySize(32, 32));
-        add(this.add.text(x - 27, y - 17, sp.name, {
-          fontFamily: 'monospace', fontSize: '12px', color: '#3a2c14', fontStyle: 'bold',
+        card.on('pointerdown', () => { h.quick = id; this.refreshHUD(); this.openSpellbook(); });
+        add(this.add.image(cx + 18, cy + 20, sp.icon).setDisplaySize(28, 28));
+        add(this.add.text(cx + 36, cy + 6, sp.name, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#3a2c14', fontStyle: 'bold',
         }));
-        add(this.add.text(x - 27, y + 2, sp.cost + ' mp', {
-          fontFamily: 'monospace', fontSize: '11px', color: '#7a1f1f',
+        add(this.add.text(cx + 36, cy + 21, sp.cost + ' mp', {
+          fontFamily: 'monospace', fontSize: '10px', color: '#7a1f1f',
         }));
       });
-    });
+      py += Math.ceil(known.length / 3) * 46 + 8;
+    }
+
+    const canStudy = HERO_SCHOOLS[h.name].filter(s => s !== 'martial').map(s => SCHOOLS[s].name).join(', ');
+    add(this.add.text(224, 448, canStudy
+      ? `${h.name} may study: ${canStudy} — scrolls teach new spells`
+      : `${h.name} trusts steel over sorcery.`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
+    }));
+
     this.sbContainer.setVisible(true);
   }
 
@@ -1844,6 +2344,7 @@ class WorldScene extends Phaser.Scene {
   refreshInventory() {
     for (const o of this.invItems) o.destroy();
     this.invItems = [];
+    if (!this.invOpen) return; // data changed while the panel was closed
     const add = o => { this.invItems.push(o.setDepth(3001)); return o; };
 
     GameData.party.forEach((h, i) => {
@@ -1913,6 +2414,22 @@ class WorldScene extends Phaser.Scene {
       GameData.gold += it.gold;
       GameData.inventory[idx] = null;
       this.toast(`Marked for Odo's ledger: +${it.gold} gold.`);
+    } else if (it.kind === 'scroll') {
+      const sp = SPELLS[it.spell];
+      const canLearn = x => x.hp > 0 && HERO_SCHOOLS[x.name].includes(sp.school) && !x.spells.includes(it.spell);
+      const learner = canLearn(h) ? h : GameData.party.find(canLearn);
+      if (!learner) {
+        const knower = GameData.party.find(x => x.spells.includes(it.spell));
+        this.toast(knower
+          ? `${knower.name} already knows ${sp.name}.`
+          : `None of the party can grasp ${SCHOOLS[sp.school].name} magic.`);
+        return;
+      }
+      learner.spells.push(it.spell);
+      learner.quick = it.spell;
+      GameData.inventory[idx] = null;
+      this.toast(`${learner.name} learns ${sp.name}! (${SCHOOLS[sp.school].name} magic — readied on their key)`);
+      this.saveGame();
     } else {
       this.toast(`${it.name} — Bram will want to see this.`);
       return;
@@ -1964,35 +2481,37 @@ class WorldScene extends Phaser.Scene {
   refreshShop() {
     for (const o of this.shopItems) o.destroy();
     this.shopItems = [];
+    if (!this.shopOpen) return;
     const add = o => { this.shopItems.push(o.setDepth(3001)); return o; };
 
     SHOP_STOCK.forEach((id, i) => {
       const it = ITEM_TYPES[id];
       const col = i % 2, row = Math.floor(i / 2);
-      const x = 300 + col * 360, y = 122 + row * 66;
+      const x = 300 + col * 360, y = 106 + row * 44;
       const afford = GameData.gold >= it.price;
-      const box = add(this.add.rectangle(x, y, 336, 56, afford ? 0x8a6f28 : 0x4a4032, afford ? 0.14 : 0.08)
+      const box = add(this.add.rectangle(x, y, 336, 38, afford ? 0x8a6f28 : 0x4a4032, afford ? 0.14 : 0.08)
         .setStrokeStyle(1, afford ? 0x8a6f28 : 0x6a5a38))
         .setInteractive({ useHandCursor: true });
       box.on('pointerdown', () => this.buyItem(id));
-      add(this.add.image(x - 138, y, 'slot'));
-      add(this.add.image(x - 138, y, it.icon).setDisplaySize(30, 30));
-      const stat = it.atk ? `+${it.atk} ATK` : it.def ? `+${it.def} DEF` : it.heal ? `heals ${it.heal}` : `restores ${it.mana} mp`;
-      add(this.add.text(x - 112, y - 16, it.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#3a2c14', fontStyle: 'bold',
+      add(this.add.image(x - 144, y, it.icon).setDisplaySize(26, 26));
+      const stat = it.kind === 'scroll' ? `teaches ${SPELLS[it.spell].name}`
+        : it.atk ? `+${it.atk} ATK` : it.def ? `+${it.def} DEF`
+        : it.heal ? `heals ${it.heal}` : `restores ${it.mana} mp`;
+      add(this.add.text(x - 124, y - 14, it.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#3a2c14', fontStyle: 'bold',
       }));
-      add(this.add.text(x - 112, y + 3, stat, { fontFamily: 'monospace', fontSize: '11px', color: '#28527a' }));
+      add(this.add.text(x - 124, y + 2, stat, { fontFamily: 'monospace', fontSize: '10px', color: '#28527a' }));
       add(this.add.text(x + 158, y, it.price + 'g', {
-        fontFamily: 'monospace', fontSize: '15px', fontStyle: 'bold',
+        fontFamily: 'monospace', fontSize: '13px', fontStyle: 'bold',
         color: afford ? '#7a5a10' : '#9a4040',
       }).setOrigin(1, 0.5));
     });
 
-    add(this.add.text(480, 402, `Your gold: ${GameData.gold}`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#7a5a10', fontStyle: 'bold',
+    add(this.add.text(480, 418, `Your gold: ${GameData.gold}`, {
+      fontFamily: 'monospace', fontSize: '15px', color: '#7a5a10', fontStyle: 'bold',
     }).setOrigin(0.5));
-    add(this.add.text(480, 430, 'click a ware to buy it · sell gems from your pack (I) · Esc closes', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#6a5636',
+    add(this.add.text(480, 442, 'click a ware to buy it · scrolls teach spells (use from your pack) · Esc closes', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
     }).setOrigin(0.5));
   }
 
