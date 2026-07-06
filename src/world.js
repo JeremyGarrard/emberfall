@@ -1047,7 +1047,17 @@ class WorldScene extends Phaser.Scene {
     // same vale; looted chests and slain monsters stay gone (by uid)
     this.save = null;
     try { this.save = JSON.parse(localStorage.getItem('emberfall-save')); } catch (e) {}
-    if (this.save && this.save.v !== 1) this.save = null;
+    if (this.save && this.save.v === 1) {
+      // v1 predates the Eastmarch camp: new spawns shifted entity uids, so the
+      // old gone-list can't be trusted. Keep the party's progress; regrow the vale.
+      this.save.seed = (Math.random() * 1e9) >>> 0;
+      this.save.gone = [];
+      this.save.px = START.x; this.save.py = START.y; this.save.angle = 0;
+      this.save.flying = false; this.save.eyeZ = 0.5;
+      this.save.v = 2;
+      this._migrated = true;
+    }
+    if (this.save && this.save.v !== 2) this.save = null;
     this.worldSeed = this.save ? this.save.seed : (Math.random() * 1e9) >>> 0;
     setSeed(this.worldSeed);
     this.goneUids = new Set(this.save ? this.save.gone : []);
@@ -1209,9 +1219,11 @@ class WorldScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 10, y: 5 },
     }).setOrigin(0.5).setDepth(1001).setAlpha(0);
 
-    this.toast(this.save
-      ? 'Your journey resumes. Progress saves itself; N twice begins anew.'
-      : 'Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
+    this.toast(this._migrated
+      ? 'The vale has shifted since your last visit — your party and goods endure.'
+      : this.save
+        ? 'Your journey resumes. Progress saves itself; N twice begins anew.'
+        : 'Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
   }
 
   saveGame() {
@@ -1222,7 +1234,7 @@ class WorldScene extends Phaser.Scene {
       weapon: h.weapon, armor: h.armor, readyAt: 0,
     }));
     const s = {
-      v: 1, seed: this.worldSeed,
+      v: 2, seed: this.worldSeed, // v2 = Eastmarch-era uid ordering
       px: this.px, py: this.py, angle: this.angle,
       flying: this.flying, eyeZ: this.eyeZ, flyCaster: this.flyCaster,
       gold: GameData.gold, inventory: GameData.inventory,
@@ -1488,7 +1500,10 @@ class WorldScene extends Phaser.Scene {
       enemies++;
     }
 
-    // Bram's stolen blade: a goblin camp far east, across the river ford
+    // Bram's stolen blade: a goblin camp far east, across the river ford.
+    // Skip entirely once the blade is claimed (migrated saves regrow the world,
+    // and a second blade would be nonsense). Last spawn block, so uids stay stable.
+    if (GameData.flags.hasLostBlade || GameData.quests.lostblade === 'done') return;
     let sx = 76, sy = VILLAGE.y1 + 8, swordGuard = 0;
     while (swordGuard++ < 500 &&
            (this.map[sy][sx] !== T_GRASS || this.inVillage(sx, sy, 1) || this.entityAt(sx, sy))) {
