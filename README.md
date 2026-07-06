@@ -99,6 +99,11 @@ potions or gems. The party bar shows painted portraits, MM7-style.
   road, take the camp, walk over the blade, and bring it home. Reward: party XP and a new
   spell — **Fly** — for Malwick (R/X or PgUp/PgDn to rise and dive, cast again to land;
   melee monsters can't touch an airborne party). A quest tracker sits above the party bar.
+- **Spell visuals** — every spell has a 3D effect: travelling bolts with trails, chain-
+  lightning beams, expanding nova rings, rising self-buff motes, meteors during
+  Armageddon, and impact bursts on every hit (including arrows and sword blows). All
+  driven by a pooled particle system (`src/fx.js`) — a new spell's look is one line of
+  registry data.
 - **Schools of magic** — eight MM7-style schools: Fire, Air, Water, Earth, Body, Spirit,
   Light, and Dark, with 24 spells across them. Chain lightning, knockback thunderclaps,
   burning damage-over-time, roots that pin charging wolves, true-damage spirit strikes,
@@ -124,6 +129,12 @@ potions or gems. The party bar shows painted portraits, MM7-style.
 | Talk to villager | T (when close) |
 | Minimap / Fullscreen | M / F11 |
 | New game | N twice (progress auto-saves) |
+
+## Contributing (humans or agents)
+
+`CLAUDE.md` has the conventions, `ARCHITECTURE.md` maps the systems and extension
+recipes, and `BACKLOG.md` is a list of self-contained tickets sized for a single
+session each. Everything extends through registries — most tasks touch one file.
 
 ## Code layout
 

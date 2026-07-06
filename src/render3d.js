@@ -54,6 +54,8 @@ const R3D = {
     this.buildWalls();
     this.buildRoofs();
 
+    FX.init(this.scene);
+
     this.spriteMats = {};
     this.sprites = new Map();
     this.ready = true;
@@ -73,11 +75,12 @@ const R3D = {
   buildTerrain() {
     const { mapW, mapH, heights, map } = this.world;
     const W1 = mapW + 1, H1 = mapH + 1;
-    const pos = [], col = [], idx = [];
+    const pos = [], col = [], idx = [], uv = [];
     for (let y = 0; y < H1; y++) {
       for (let x = 0; x < W1; x++) {
         const h = heights[y][x];
         pos.push(x, h, y);
+        uv.push(x / 2, y / 2); // detail texture tiles every 2 units
         const tx = Math.min(x, mapW - 1), ty = Math.min(y, mapH - 1);
         let t = map[ty][tx];
         if (t >= 5) t = 0;
@@ -104,9 +107,14 @@ const R3D = {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    const mat = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0 });
+    // near-white noise texture multiplies the vertex colors: ground detail
+    // without shifting the hue of grass/dirt/cobble tints
+    const detail = new THREE.CanvasTexture(ART.terrainNoise);
+    detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+    const mat = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0, map: detail });
     this.terrainMesh = new THREE.Mesh(geo, mat);
     this.scene.add(this.terrainMesh);
   },
@@ -254,6 +262,7 @@ const R3D = {
       state.camZ + sp,
       state.py + Math.sin(state.angle) * cp);
     this.syncEntities(state.entities, state.time);
+    FX.update(state.time);
     for (const [d, m] of this.doorMeshes) m.visible = !d.open;
     this.skyMesh.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);

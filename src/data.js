@@ -25,40 +25,40 @@ const HERO_SCHOOLS = {
 
 const SPELLS = {
   // martial (not magic; can't be scribed)
-  cleave:     { school: 'martial', name: 'Cleave',       cost: 3,  desc: 'Sweep all foes within reach', icon: 'ic_cleave' },
-  doubleshot: { school: 'martial', name: 'Double Shot',  cost: 4,  desc: 'Two arrows at your target', icon: 'ic_dshot' },
+  cleave:     { school: 'martial', name: 'Cleave',       cost: 3,  desc: 'Sweep all foes within reach', icon: 'ic_cleave', fx: { type: 'nova', color: '#d0d0d8', r: 2.4 } },
+  doubleshot: { school: 'martial', name: 'Double Shot',  cost: 4,  desc: 'Two arrows at your target', icon: 'ic_dshot', fx: { type: 'bolt', color: '#e8d8a0' } },
   // fire
-  firebolt:   { school: 'fire',   name: 'Fire Bolt',     cost: 3,  desc: 'Scorch a foe; it burns awhile', icon: 'ic_firebolt' },
-  fireball:   { school: 'fire',   name: 'Fireball',      cost: 6,  desc: 'Explodes on your target', icon: 'ic_fire' },
-  ringfire:   { school: 'fire',   name: 'Ring of Fire',  cost: 9,  desc: 'Ignite everything around the party', icon: 'ic_ringfire' },
+  firebolt:   { school: 'fire',   name: 'Fire Bolt',     cost: 3,  desc: 'Scorch a foe; it burns awhile', icon: 'ic_firebolt', fx: { type: 'bolt', color: '#ff8030' } },
+  fireball:   { school: 'fire',   name: 'Fireball',      cost: 6,  desc: 'Explodes on your target', icon: 'ic_fire', fx: { type: 'bolt', color: '#ff6020' } },
+  ringfire:   { school: 'fire',   name: 'Ring of Fire',  cost: 9,  desc: 'Ignite everything around the party', icon: 'ic_ringfire', fx: { type: 'nova', color: '#ff7020', r: 4 } },
   // air
-  spark:      { school: 'air',    name: 'Spark',         cost: 4,  desc: 'Lightning that arcs to nearby foes', icon: 'ic_spark' },
-  thunderclap:{ school: 'air',    name: 'Thunderclap',   cost: 8,  desc: 'Blast nearby foes away and daze them', icon: 'ic_clap' },
-  fly:        { school: 'air',    name: 'Fly',           cost: 10, desc: 'Take wing: R/X to rise and dive. Cast again to land.', icon: 'ic_fly' },
+  spark:      { school: 'air',    name: 'Spark',         cost: 4,  desc: 'Lightning that arcs to nearby foes', icon: 'ic_spark', fx: { type: 'bolt', color: '#a0e0ff' } },
+  thunderclap:{ school: 'air',    name: 'Thunderclap',   cost: 8,  desc: 'Blast nearby foes away and daze them', icon: 'ic_clap', fx: { type: 'nova', color: '#c8e8ff', r: 4 } },
+  fly:        { school: 'air',    name: 'Fly',           cost: 10, desc: 'Take wing: R/X to rise and dive. Cast again to land.', icon: 'ic_fly', fx: { type: 'self', color: '#b0e8ff' } },
   // water
-  icebolt:    { school: 'water',  name: 'Ice Bolt',      cost: 4,  desc: 'Wound and chill one foe', icon: 'ic_icebolt' },
-  frostnova:  { school: 'water',  name: 'Frost Nova',    cost: 7,  desc: 'Freeze and wound all foes around you', icon: 'ic_frost' },
-  waterwalk:  { school: 'water',  name: 'Water Walk',    cost: 8,  desc: 'The party treads rivers and lakes awhile', icon: 'ic_wwalk' },
+  icebolt:    { school: 'water',  name: 'Ice Bolt',      cost: 4,  desc: 'Wound and chill one foe', icon: 'ic_icebolt', fx: { type: 'bolt', color: '#70c0ff' } },
+  frostnova:  { school: 'water',  name: 'Frost Nova',    cost: 7,  desc: 'Freeze and wound all foes around you', icon: 'ic_frost', fx: { type: 'nova', color: '#a0d8ff', r: 3.5 } },
+  waterwalk:  { school: 'water',  name: 'Water Walk',    cost: 8,  desc: 'The party treads rivers and lakes awhile', icon: 'ic_wwalk', fx: { type: 'self', color: '#4090e0' } },
   // earth
-  rockblast:  { school: 'earth',  name: 'Rock Blast',    cost: 5,  desc: 'A boulder that batters a foe backward', icon: 'ic_rock' },
-  stoneskin:  { school: 'earth',  name: 'Stone Skin',    cost: 6,  desc: 'The party hardens: +3 DEF awhile', icon: 'ic_stone' },
-  roots:      { school: 'earth',  name: 'Grasping Roots',cost: 8,  desc: 'Roots pin every nearby foe in place', icon: 'ic_roots' },
+  rockblast:  { school: 'earth',  name: 'Rock Blast',    cost: 5,  desc: 'A boulder that batters a foe backward', icon: 'ic_rock', fx: { type: 'bolt', color: '#c0a060' } },
+  stoneskin:  { school: 'earth',  name: 'Stone Skin',    cost: 6,  desc: 'The party hardens: +3 DEF awhile', icon: 'ic_stone', fx: { type: 'self', color: '#b0985a' } },
+  roots:      { school: 'earth',  name: 'Grasping Roots',cost: 8,  desc: 'Roots pin every nearby foe in place', icon: 'ic_roots', fx: { type: 'nova', color: '#7a9a30', r: 5 } },
   // body
-  heal:       { school: 'body',   name: 'Heal',          cost: 5,  desc: 'Mend the most wounded ally', icon: 'ic_heal' },
-  regen:      { school: 'body',   name: 'Regeneration',  cost: 7,  desc: 'The party knits closed awhile', icon: 'ic_regen' },
-  greatheal:  { school: 'body',   name: 'Great Heal',    cost: 11, desc: 'Mend the whole party at once', icon: 'ic_gheal' },
+  heal:       { school: 'body',   name: 'Heal',          cost: 5,  desc: 'Mend the most wounded ally', icon: 'ic_heal', fx: { type: 'self', color: '#80ff9a' } },
+  regen:      { school: 'body',   name: 'Regeneration',  cost: 7,  desc: 'The party knits closed awhile', icon: 'ic_regen', fx: { type: 'self', color: '#ff9080' } },
+  greatheal:  { school: 'body',   name: 'Great Heal',    cost: 11, desc: 'Mend the whole party at once', icon: 'ic_gheal', fx: { type: 'self', color: '#80ffb0' } },
   // spirit
-  bless:      { school: 'spirit', name: 'Bless',         cost: 5,  desc: 'The party strikes harder: +2 ATK awhile', icon: 'ic_bless' },
-  spiritlash: { school: 'spirit', name: 'Spirit Lash',   cost: 6,  desc: 'A soul-strike no armor can turn', icon: 'ic_lash' },
-  raisedead:  { school: 'spirit', name: 'Raise Dead',    cost: 12, desc: 'Call a fallen hero back to their feet', icon: 'ic_raise' },
+  bless:      { school: 'spirit', name: 'Bless',         cost: 5,  desc: 'The party strikes harder: +2 ATK awhile', icon: 'ic_bless', fx: { type: 'self', color: '#f0e0a0' } },
+  spiritlash: { school: 'spirit', name: 'Spirit Lash',   cost: 6,  desc: 'A soul-strike no armor can turn', icon: 'ic_lash', fx: { type: 'beam', color: '#e8e8ff' } },
+  raisedead:  { school: 'spirit', name: 'Raise Dead',    cost: 12, desc: 'Call a fallen hero back to their feet', icon: 'ic_raise', fx: { type: 'self', color: '#ffffff' } },
   // light
-  sunray:     { school: 'light',  name: 'Sunray',        cost: 7,  desc: 'A searing beam that leaves foes dazzled', icon: 'ic_sunray' },
-  prismatic:  { school: 'light',  name: 'Prismatic Light', cost: 10, desc: 'Burn every foe in sight; soothe the party', icon: 'ic_prism' },
-  hourofpower:{ school: 'light',  name: 'Hour of Power', cost: 12, desc: 'Bless, stone skin, and haste — all at once', icon: 'ic_hour' },
+  sunray:     { school: 'light',  name: 'Sunray',        cost: 7,  desc: 'A searing beam that leaves foes dazzled', icon: 'ic_sunray', fx: { type: 'beam', color: '#fff0a0' } },
+  prismatic:  { school: 'light',  name: 'Prismatic Light', cost: 10, desc: 'Burn every foe in sight; soothe the party', icon: 'ic_prism', fx: { type: 'nova', color: '#ffffff', r: 6 } },
+  hourofpower:{ school: 'light',  name: 'Hour of Power', cost: 12, desc: 'Bless, stone skin, and haste — all at once', icon: 'ic_hour', fx: { type: 'self', color: '#ffd040' } },
   // dark
-  drain:      { school: 'dark',   name: 'Vampiric Drain', cost: 6, desc: 'Steal a foe\'s life for the caster', icon: 'ic_drain' },
-  curse:      { school: 'dark',   name: 'Curse',         cost: 7,  desc: 'Wither a foe\'s strength and speed', icon: 'ic_curse' },
-  armageddon: { school: 'dark',   name: 'Armageddon',    cost: 30, desc: 'The sky falls on every monster in the vale — and singes you', icon: 'ic_arma' },
+  drain:      { school: 'dark',   name: 'Vampiric Drain', cost: 6, desc: 'Steal a foe\'s life for the caster', icon: 'ic_drain', fx: { type: 'beam', color: '#c03060' } },
+  curse:      { school: 'dark',   name: 'Curse',         cost: 7,  desc: 'Wither a foe\'s strength and speed', icon: 'ic_curse', fx: { type: 'bolt', color: '#9040c0' } },
+  armageddon: { school: 'dark',   name: 'Armageddon',    cost: 30, desc: 'The sky falls on every monster in the vale — and singes you', icon: 'ic_arma', fx: { type: 'nova', color: '#ff4020', r: 7 } },
 };
 
 // every non-martial spell exists as a learnable scroll item
@@ -125,10 +125,10 @@ function makeHero(name, cls, stats) {
 const GameData = {
   gold: 50,
   party: [
-    makeHero('Roderick', 'Knight',   { hp: 44, mp: 6,  atk: 8, def: 4, spells: ['cleave'],                          range: 2.2, rec: 1000 }),
-    makeHero('Wren',     'Archer',   { hp: 32, mp: 8,  atk: 7, def: 2, spells: ['doubleshot', 'spark', 'icebolt'],  range: 9,   rec: 850 }),
-    makeHero('Serena',   'Cleric',   { hp: 30, mp: 14, atk: 4, def: 2, spells: ['heal', 'bless'],                   range: 6,   rec: 1200 }),
-    makeHero('Malwick',  'Sorcerer', { hp: 26, mp: 16, atk: 3, def: 1, spells: ['fireball', 'firebolt'],            range: 7,   rec: 1300 }),
+    makeHero('Roderick', 'Knight',   { hp: 44, mp: 6,  atk: 8, def: 4, spells: ['cleave'], range: 2.2, rec: 1000 }),
+    makeHero('Wren',     'Archer',   { hp: 32, mp: 10, atk: 7, def: 2, spells: ['doubleshot', 'spark', 'icebolt', 'thunderclap'], range: 9, rec: 850 }),
+    makeHero('Serena',   'Cleric',   { hp: 30, mp: 18, atk: 4, def: 2, spells: ['heal', 'bless', 'regen', 'sunray', 'greatheal'], range: 6, rec: 1200 }),
+    makeHero('Malwick',  'Sorcerer', { hp: 26, mp: 20, atk: 3, def: 1, spells: ['fireball', 'firebolt', 'ringfire', 'frostnova', 'rockblast', 'drain', 'curse'], range: 7, rec: 1300 }),
   ],
   flags: { hasLostBlade: false },
   quests: { lostblade: 'available' }, // available -> active -> found -> done

@@ -139,6 +139,19 @@ class BootScene extends Phaser.Scene {
       g.fillStyle = '#9ac8e8';
       for (let i = 0; i < 12; i++) g.fillRect(rnd() * 60, rnd() * 62, 2, 1);
     }, 64);
+    // near-white noise for the 3D terrain's detail map (multiplied over vertex colors)
+    makeArt('terrainNoise', g => {
+      g.fillStyle = '#d8d8d8'; g.fillRect(0, 0, 64, 64);
+      for (let i = 0; i < 130; i++) {
+        g.fillStyle = ['#c8c8c8', '#e6e6e6', '#cfcfcf', '#dfdfdf'][(rnd() * 4) | 0];
+        g.fillRect(rnd() * 61, rnd() * 61, 2 + rnd() * 4, 2 + rnd() * 3);
+      }
+      for (let i = 0; i < 40; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#bfbfbf' : '#efefef';
+        g.fillRect(rnd() * 63, rnd() * 59, 1, 2 + rnd() * 4);
+      }
+    }, 64);
+
     makeArt('woodfloor', g => {
       for (let b = 0; b < 8; b++) {
         const y = b * 8;
@@ -1819,13 +1832,25 @@ class WorldScene extends Phaser.Scene {
     }
     const d = Math.hypot(t.x - this.px, t.y - this.py, this.eyeZ - 0.5); // altitude counts
     let fired = 0;
-    for (const h of GameData.party) {
-      if (h.hp <= 0 || time < h.readyAt || d > h.range) continue;
+    const volleyColors = { Roderick: '#e8e8f0', Wren: '#e8d8a0', Serena: '#f0f0ff', Malwick: '#c080ff' };
+    GameData.party.forEach((h, hi) => {
+      if (h.hp <= 0 || time < h.readyAt || d > h.range || t.hp <= 0) return;
       h.readyAt = time + h.rec * this.hasteMul();
       fired++;
+      if (FX.ready) {
+        const az = this.terrainH(t.x, t.y) + 0.5;
+        if (h.range > 3) {
+          // ranged heroes loose visible missiles, spread across the party line
+          const sideX = Math.cos(this.angle + Math.PI / 2) * (hi - 1.5) * 0.22;
+          const sideY = Math.sin(this.angle + Math.PI / 2) * (hi - 1.5) * 0.22;
+          FX.bolt(this.px + sideX, this.camZ - 0.2, this.py + sideY, t.x, az, t.y,
+            volleyColors[h.name] || '#e8e8e8', { scale: 0.22, burst: 5, speed: 20 });
+        } else {
+          FX.burst(t.x, az, t.y, volleyColors[h.name] || '#e8e8e8', 8, { scale: 0.2 });
+        }
+      }
       this.damageEnemy(t, Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - t.def));
-      if (t.hp <= 0) break;
-    }
+    });
     if (!fired && time > (this._attackMsgCd || 0)) {
       this.toast(d > 2.2 ? 'Too far for Roderick — the others are recovering...' : 'The party is recovering...');
       this._attackMsgCd = time + 1200;
@@ -1851,6 +1876,22 @@ class WorldScene extends Phaser.Scene {
       e.x = nx; e.y = ny;
     }
     e.gx = Math.floor(e.x); e.gy = Math.floor(e.y);
+  }
+
+  // generic spell visuals, driven by SPELLS[id].fx = {type, color, r} —
+  // adding a new spell's look is data in the registry, not code here
+  spellFX(spellId, t) {
+    const fx = SPELLS[spellId] && SPELLS[spellId].fx;
+    if (!fx || !FX.ready) return;
+    const fz = this.camZ - 0.15;
+    const from = [this.px + Math.cos(this.angle) * 0.4, fz, this.py + Math.sin(this.angle) * 0.4];
+    const at = t ? [t.x, this.terrainH(t.x, t.y) + 0.5, t.y] : null;
+    switch (fx.type) {
+      case 'bolt': if (at) FX.bolt(from[0], from[1], from[2], at[0], at[1], at[2], fx.color); break;
+      case 'beam': if (at) FX.beam(from[0], from[1], from[2], at[0], at[1], at[2], fx.color); break;
+      case 'nova': FX.ring(this.px, this.terrainH(this.px, this.py) + 0.2, this.py, fx.color, fx.r || 4); break;
+      case 'self': FX.burst(this.px, this.camZ - 0.35, this.py, fx.color, 16, { grav: 1.2, speed: 1.4, life: 0.7 }); break;
+    }
   }
 
   castSkill(idx, time) {
@@ -1900,6 +1941,7 @@ class WorldScene extends Phaser.Scene {
       case 'fireball': {
         if (!t || tDist > 8) { this.toast('No target for the fireball!'); return; }
         this.cameras.main.flash(120, 255, 140, 40);
+        if (FX.ready) FX.ring(t.x, this.terrainH(t.x, t.y) + 0.2, t.y, '#ff7020', 2.2);
         const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - t.x, e.y - t.y) < 2);
         victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - v.def)));
         ok = true;
@@ -1956,7 +1998,13 @@ class WorldScene extends Phaser.Scene {
         const dmg = 5 + h.level * 2 + ri(0, 3);
         this.damageEnemy(t, Math.max(1, dmg - t.def));
         const chained = this.enemiesNear(t.x, t.y, 3).filter(v => v !== t && v.hp > 0).slice(0, 2);
-        chained.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(dmg * 0.6) - v.def)));
+        chained.forEach(v => {
+          if (FX.ready) {
+            FX.beam(t.x, this.terrainH(t.x, t.y) + 0.6, t.y,
+              v.x, this.terrainH(v.x, v.y) + 0.6, v.y, '#a0e0ff');
+          }
+          this.damageEnemy(v, Math.max(1, Math.round(dmg * 0.6) - v.def));
+        });
         ok = true;
         break;
       }
@@ -2108,7 +2156,13 @@ class WorldScene extends Phaser.Scene {
         this.cameras.main.flash(400, 255, 60, 30);
         this.cameras.main.shake(500, 0.012);
         const all = this.entities.filter(x => x.kind === 'enemy');
-        all.forEach(v => this.damageEnemy(v, 25 + h.level * 5));
+        all.forEach(v => {
+          if (FX.ready) {
+            const vz = this.terrainH(v.x, v.y);
+            FX.bolt(v.x + 1.5, vz + 7, v.y - 1, v.x, vz + 0.4, v.y, '#ff5020', { speed: 22, burst: 14, scale: 0.45 });
+          }
+          this.damageEnemy(v, 25 + h.level * 5);
+        });
         GameData.party.forEach(x => { if (x.hp > 0) x.hp = Math.max(1, x.hp - 8); });
         this.toast(`ARMAGEDDON! The sky falls on ${all.length} monsters — and scorches the party.`);
         ok = true;
@@ -2117,6 +2171,7 @@ class WorldScene extends Phaser.Scene {
     }
 
     if (ok) {
+      this.spellFX(h.quick, t);
       h.mp -= spell.cost;
       h.readyAt = time + h.rec * 1.3 * this.hasteMul();
       this.refreshHUD();
@@ -2126,6 +2181,7 @@ class WorldScene extends Phaser.Scene {
   damageEnemy(e, dmg) {
     if (e.hp <= 0) return;
     e.hp -= dmg;
+    if (FX.ready) FX.burst(e.x, this.terrainH(e.x, e.y) + 0.55, e.y, '#ffcfa0', 6, { scale: 0.17, speed: 1.6, life: 0.35 });
     const p = this.projectEntity(e);
     if (p) this.floatText(p.x + ri(-16, 16), p.y, `-${dmg}`, '#ff9a80');
     this.hitFlashUntil = this.time.now + 130;
