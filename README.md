@@ -137,3 +137,16 @@ potions or gems. The party bar shows painted portraits, MM7-style.
    reads directly; replaces the procedural scatter with designed zones + dungeons.
 6. **Save/load** — `GameData` is already one serializable object; `localStorage` makes it trivial.
 7. **Sound** — Phaser has built-in audio; a few retro SFX + a music loop go a long way.
+
+### Saving
+
+Progress **saves itself** (every 10 seconds and on every kill, chest, purchase, and
+quest beat) to your browser's localStorage. The save stores the world *seed*, so the
+same vale regrows on load — minus every chest you've looted and monster you've slain.
+Press **N twice** to abandon the journey and roll a fresh vale.
+
+### Shopping
+
+Talk to Odo the Peddler at his trading post and hit **Browse Odo's wares**: potions and
+gear bought with a click (prices go red when your purse can't keep up). Sell gems from
+your own pack via the inventory (I).

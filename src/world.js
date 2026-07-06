@@ -763,8 +763,26 @@ class WorldScene extends Phaser.Scene {
   constructor() { super('World'); }
 
   create() {
+    // resume a saved journey if one exists: the stored seed regrows the very
+    // same vale; looted chests and slain monsters stay gone (by uid)
+    this.save = null;
+    try { this.save = JSON.parse(localStorage.getItem('emberfall-save')); } catch (e) {}
+    if (this.save && this.save.v !== 1) this.save = null;
+    this.worldSeed = this.save ? this.save.seed : (Math.random() * 1e9) >>> 0;
+    setSeed(this.worldSeed);
+    this.goneUids = new Set(this.save ? this.save.gone : []);
+    if (this.save) {
+      const s = this.save;
+      GameData.gold = s.gold;
+      GameData.inventory = s.inventory;
+      GameData.flags = s.flags;
+      GameData.quests = s.quests;
+      s.party.forEach((sp, i) => Object.assign(GameData.party[i], sp));
+    }
+
     this.buildMap();
     this.buildEntities();
+    this.entities = this.entities.filter(e => !this.goneUids.has(e.uid));
 
     // real-3D view: three.js canvas underneath, this Phaser canvas (transparent)
     // draws every UI element on top
@@ -792,12 +810,18 @@ class WorldScene extends Phaser.Scene {
 
     this.px = START.x; this.py = START.y;
     this.angle = 0; // radians; 0 = east
-    this.pitch = 0; // vertical look, in screen pixels of horizon shift
-    this.eyeZ = 0.5;      // camera height in wall units (0.5 = on foot)
+    this.pitch = 0; // vertical look, radians
+    this.eyeZ = 0.5;      // camera height above local terrain (0.5 = on foot)
     this.flying = false;  // the Fly spell
     this.landing = false;
     this.flyCaster = -1;
     this.flyDrainAt = 0;
+    if (this.save) {
+      this.px = this.save.px; this.py = this.save.py; this.angle = this.save.angle || 0;
+      this.flying = !!this.save.flying;
+      this.eyeZ = this.save.eyeZ || 0.5;
+      this.flyCaster = this.save.flyCaster != null ? this.save.flyCaster : -1;
+    }
     this.dialogOpen = false;
     this.nearVillager = null;
     this.dead = false;
@@ -809,14 +833,14 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,Q,E,M,R,X,UP,DOWN,LEFT,RIGHT,SPACE,ONE,TWO,THREE,FOUR,PAGE_UP,PAGE_DOWN');
     this.input.keyboard.on('keydown-M', () => { this.mmContainer.visible = !this.mmContainer.visible; });
     this.input.keyboard.on('keydown-T', () => {
-      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && this.nearVillager) {
+      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && !this.shopOpen && this.nearVillager) {
         this.openDialogue(this.nearVillager);
       }
     });
 
     // click: grab mouse-look if not locked, and swing at whatever's in your sights
     this.input.on('pointerdown', () => {
-      if (this.dialogOpen || this.dead || this.sbOpen || this.invOpen) return;
+      if (this.dialogOpen || this.dead || this.sbOpen || this.invOpen || this.shopOpen) return;
       if (document.pointerLockElement !== this.game.canvas) this.game.canvas.requestPointerLock();
       this.partyAttack(this.time.now);
     });
@@ -832,6 +856,17 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-F', () => this.partyAttack(this.time.now));
 
     this.time.addEvent({ delay: 650, loop: true, callback: () => this.wanderEnemies() });
+    this.time.addEvent({ delay: 10000, loop: true, callback: () => this.saveGame() });
+    this.input.keyboard.on('keydown-N', () => {
+      if (this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
+      if (this.newGameArm && this.time.now < this.newGameArm) {
+        localStorage.removeItem('emberfall-save');
+        location.reload();
+      } else {
+        this.newGameArm = this.time.now + 2500;
+        this.toast('Press N again to abandon this journey and begin anew.');
+      }
+    });
 
     this.questText = this.add.text(12, 470, '', {
       fontFamily: 'monospace', fontSize: '12px', color: '#9ad8ff',
@@ -842,17 +877,21 @@ class WorldScene extends Phaser.Scene {
     this.buildHUD();
     this.buildSpellbook();
     this.buildInventoryUI();
+    this.buildShopUI();
     this.input.keyboard.on('keydown-B', () => {
       if (this.dialogOpen || this.dead) return;
+      if (this.shopOpen) this.closeShop();
       if (this.sbOpen) this.closeSpellbook(); else this.openSpellbook();
     });
     this.input.keyboard.on('keydown-I', () => {
       if (this.dialogOpen || this.dead) return;
+      if (this.shopOpen) this.closeShop();
       if (this.invOpen) this.closeInventory(); else this.openInventory();
     });
     this.input.keyboard.on('keydown-ESC', () => {
       if (this.sbOpen) this.closeSpellbook();
       if (this.invOpen) this.closeInventory();
+      if (this.shopOpen) this.closeShop();
     });
 
     this.compass = this.add.text(480, 8, '', {
@@ -878,7 +917,27 @@ class WorldScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 10, y: 5 },
     }).setOrigin(0.5).setDepth(1001).setAlpha(0);
 
-    this.toast('Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
+    this.toast(this.save
+      ? 'Your journey resumes. Progress saves itself; N twice begins anew.'
+      : 'Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
+  }
+
+  saveGame() {
+    if (this.dead) return;
+    const party = GameData.party.map(h => ({
+      level: h.level, xp: h.xp, hp: h.hp, maxHp: h.maxHp, mp: h.mp, maxMp: h.maxMp,
+      atk: h.atk, def: h.def, spells: h.spells.slice(), quick: h.quick,
+      weapon: h.weapon, armor: h.armor, readyAt: 0,
+    }));
+    const s = {
+      v: 1, seed: this.worldSeed,
+      px: this.px, py: this.py, angle: this.angle,
+      flying: this.flying, eyeZ: this.eyeZ, flyCaster: this.flyCaster,
+      gold: GameData.gold, inventory: GameData.inventory,
+      flags: GameData.flags, quests: GameData.quests,
+      party, gone: [...this.goneUids],
+    };
+    try { localStorage.setItem('emberfall-save', JSON.stringify(s)); } catch (e) {}
   }
 
   // ---------- map & entities ----------
@@ -946,12 +1005,13 @@ class WorldScene extends Phaser.Scene {
     for (let y = 0; y < H1; y++) h.push(new Float32Array(W1));
 
     // gaussian mounds are the hills; a rising rim walls in the vale
+    // (gri/grand are seeded — the same save regrows the same vale)
     const mounds = [];
     let tries = 0;
     while (mounds.length < 26 && tries++ < 300) {
-      const mx = ri(6, MAP_W - 6), my = ri(5, MAP_H - 5);
+      const mx = gri(6, MAP_W - 6), my = gri(5, MAP_H - 5);
       if (this.inVillage(mx, my, 9)) continue;
-      mounds.push([mx, my, 3.5 + Math.random() * 5, 0.9 + Math.random() * 1.9]);
+      mounds.push([mx, my, 3.5 + grand() * 5, 0.9 + grand() * 1.9]);
     }
     for (let y = 0; y < H1; y++) {
       for (let x = 0; x < W1; x++) {
@@ -1032,11 +1092,13 @@ class WorldScene extends Phaser.Scene {
 
   buildEntities() {
     this.entities = [];
+    let uidCounter = 0; // creation order is seeded-deterministic, so uids are stable per save
     const add = (kind, type, gx, gy) => {
       const e = {
         kind, type, art: type, gx, gy,
         x: gx + 0.5, y: gy + 0.5,
         vDiv: SPRITE_META[type].vDiv,
+        uid: uidCounter++,
       };
       if (kind === 'enemy') {
         const t = ENEMY_TYPES[type];
@@ -1054,20 +1116,20 @@ class WorldScene extends Phaser.Scene {
       x >= 2 && y >= 2 && x < MAP_W - 2 && y < MAP_H - 2 &&
       this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) && !this.entityAt(x, y);
     for (let f = 0; f < 9; f++) {
-      const fx = ri(8, MAP_W - 9), fy = ri(6, MAP_H - 7);
-      const r = ri(4, 7), pineWood = Math.random() < 0.4;
+      const fx = gri(8, MAP_W - 9), fy = gri(6, MAP_H - 7);
+      const r = gri(4, 7), pineWood = grand() < 0.4;
       const tries = Math.floor(r * r * 1.6);
       for (let i = 0; i < tries; i++) {
-        const a = Math.random() * Math.PI * 2, rr = Math.random() * r;
+        const a = grand() * Math.PI * 2, rr = grand() * r;
         const x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
         if (!treeOk(x, y)) continue;
-        const main = Math.random() < 0.85;
+        const main = grand() < 0.85;
         add('tree', pineWood === main ? 'pine' : 'tree', x, y);
       }
     }
     for (let i = 0; i < 70; i++) {
-      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
-      if (treeOk(x, y)) add('tree', Math.random() < 0.7 ? 'tree' : 'pine', x, y);
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
+      if (treeOk(x, y)) add('tree', grand() < 0.7 ? 'tree' : 'pine', x, y);
     }
 
     // furniture & street dressing (coordinates relative to the village stamp)
@@ -1100,7 +1162,7 @@ class WorldScene extends Phaser.Scene {
 
     let placed = 0, guard = 0;
     while (placed < 14 && guard++ < 2500) {
-      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
       if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) &&
           dist(x, y, START.x, START.y) > 14 && !this.entityAt(x, y)) {
         add('chest', 'chest', x, y); placed++;
@@ -1110,7 +1172,7 @@ class WorldScene extends Phaser.Scene {
     guard = 0;
     let enemies = 0;
     while (enemies < 40 && guard++ < 5000) {
-      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
       if (this.map[y][x] !== T_GRASS || this.inVillage(x, y, 4) || this.entityAt(x, y)) continue;
       const d = dist(x, y, START.x, START.y);
       const nearVillage = d < 22;
@@ -1122,7 +1184,7 @@ class WorldScene extends Phaser.Scene {
     // Bram's stolen blade: a goblin camp far east, across the river ford
     let sx = 76, sy = VILLAGE.y1 + 8, swordGuard = 0;
     while (swordGuard++ < 500 && (this.map[sy][sx] !== T_GRASS || this.entityAt(sx, sy))) {
-      sx = 70 + ri(0, 16); sy = 28 + ri(0, 18);
+      sx = 70 + gri(0, 16); sy = 28 + gri(0, 18);
     }
     add('item', 'sword', sx, sy);
     let guards = 0;
@@ -1386,6 +1448,7 @@ class WorldScene extends Phaser.Scene {
       for (const c of looted) {
         const gold = ri(12, 35);
         GameData.gold += gold;
+        this.goneUids.add(c.uid);
         this.entities.splice(this.entities.indexOf(c), 1);
         let itemMsg = '';
         if (Math.random() < 0.75) {
@@ -1398,14 +1461,17 @@ class WorldScene extends Phaser.Scene {
         }
         this.toast(`You found a chest! +${gold} gold${itemMsg}`);
         this.refreshHUD();
+        this.saveGame();
       }
       for (const it of picked) {
+        this.goneUids.add(it.uid);
         this.entities.splice(this.entities.indexOf(it), 1);
         GameData.flags.hasLostBlade = true;
         if (GameData.quests.lostblade !== 'done') GameData.quests.lostblade = 'found';
         invAdd('lostblade');
         this.toast('You recover a masterwork blade! Bram will want to see this.');
         this.refreshHUD();
+        this.saveGame();
       }
 
       if (this.nearVillager) {
@@ -1486,7 +1552,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   partyAttack(time) {
-    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
     const t = this.target;
     if (!t) {
       if (time > (this._attackMsgCd || 0)) { this.toast('No monster in your sights.'); this._attackMsgCd = time + 1500; }
@@ -1508,7 +1574,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   castSkill(idx, time) {
-    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
     const h = GameData.party[idx];
     if (!h || h.hp <= 0) return;
     if (h.quick === 'fly' && this.flying) { // landing is always free
@@ -1604,6 +1670,7 @@ class WorldScene extends Phaser.Scene {
     const gold = ri(e.gold[0], e.gold[1]);
     GameData.gold += gold;
     const notes = this.grantXP(e.xp);
+    this.goneUids.add(e.uid);
     this.entities.splice(this.entities.indexOf(e), 1);
     if (this.target === e) this.target = null;
     let dropMsg = '';
@@ -1618,6 +1685,7 @@ class WorldScene extends Phaser.Scene {
       this.time.delayedCall(1500, () => this.toast('The vale is at peace... you cleared every monster!'));
     }
     this.refreshHUD();
+    this.saveGame();
   }
 
   enemyStrike(e) {
@@ -1866,6 +1934,79 @@ class WorldScene extends Phaser.Scene {
     this.refreshInventory();
   }
 
+  // ---------- Odo's shop ----------
+
+  buildShopUI() {
+    this.shopOpen = false;
+    this.shopItems = [];
+    this.shopContainer = this.add.container(0, 0).setDepth(3000).setVisible(false);
+    this.shopContainer.add(this.add.image(480, 250, 'panel_ui'));
+    this.shopContainer.add(this.add.text(480, 54, "— ODO'S WARES —", {
+      fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
+    }).setOrigin(0.5));
+  }
+
+  openShop() {
+    if (this.sbOpen) this.closeSpellbook();
+    if (this.invOpen) this.closeInventory();
+    this.shopOpen = true;
+    this.refreshShop();
+    this.shopContainer.setVisible(true);
+  }
+
+  closeShop() {
+    this.shopOpen = false;
+    this.shopContainer.setVisible(false);
+    for (const o of this.shopItems) o.destroy();
+    this.shopItems = [];
+  }
+
+  refreshShop() {
+    for (const o of this.shopItems) o.destroy();
+    this.shopItems = [];
+    const add = o => { this.shopItems.push(o.setDepth(3001)); return o; };
+
+    SHOP_STOCK.forEach((id, i) => {
+      const it = ITEM_TYPES[id];
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = 300 + col * 360, y = 122 + row * 66;
+      const afford = GameData.gold >= it.price;
+      const box = add(this.add.rectangle(x, y, 336, 56, afford ? 0x8a6f28 : 0x4a4032, afford ? 0.14 : 0.08)
+        .setStrokeStyle(1, afford ? 0x8a6f28 : 0x6a5a38))
+        .setInteractive({ useHandCursor: true });
+      box.on('pointerdown', () => this.buyItem(id));
+      add(this.add.image(x - 138, y, 'slot'));
+      add(this.add.image(x - 138, y, it.icon).setDisplaySize(30, 30));
+      const stat = it.atk ? `+${it.atk} ATK` : it.def ? `+${it.def} DEF` : it.heal ? `heals ${it.heal}` : `restores ${it.mana} mp`;
+      add(this.add.text(x - 112, y - 16, it.name, {
+        fontFamily: 'monospace', fontSize: '13px', color: '#3a2c14', fontStyle: 'bold',
+      }));
+      add(this.add.text(x - 112, y + 3, stat, { fontFamily: 'monospace', fontSize: '11px', color: '#28527a' }));
+      add(this.add.text(x + 158, y, it.price + 'g', {
+        fontFamily: 'monospace', fontSize: '15px', fontStyle: 'bold',
+        color: afford ? '#7a5a10' : '#9a4040',
+      }).setOrigin(1, 0.5));
+    });
+
+    add(this.add.text(480, 402, `Your gold: ${GameData.gold}`, {
+      fontFamily: 'monospace', fontSize: '16px', color: '#7a5a10', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    add(this.add.text(480, 430, 'click a ware to buy it · sell gems from your pack (I) · Esc closes', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#6a5636',
+    }).setOrigin(0.5));
+  }
+
+  buyItem(id) {
+    const it = ITEM_TYPES[id];
+    if (GameData.gold < it.price) { this.toast('Odo tuts: not enough gold.'); return; }
+    if (!invAdd(id)) { this.toast('Your packs are full!'); return; }
+    GameData.gold -= it.price;
+    this.toast(`Bought: ${it.name} for ${it.price} gold.`);
+    this.refreshHUD();
+    this.refreshShop();
+    this.saveGame();
+  }
+
   // ---------- minimap ----------
 
   buildMinimap() {
@@ -1994,6 +2135,7 @@ class WorldScene extends Phaser.Scene {
     GameData.quests[id] = 'active';
     this.toast(`Quest accepted: ${QUESTS[id].title}`);
     this.refreshHUD();
+    this.saveGame();
   }
 
   completeQuest(id) {
@@ -2010,6 +2152,7 @@ class WorldScene extends Phaser.Scene {
     this.toast('Quest complete! Malwick learns FLY — cast with 4, then R/X to rise and dive' +
       (notes.length ? ' — ' + notes.join(' ') : ''));
     this.refreshHUD();
+    this.saveGame();
   }
 
   toast(msg) {

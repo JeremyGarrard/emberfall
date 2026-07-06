@@ -38,6 +38,10 @@
   #dlg-quest button { width: 100%; background: #4a3c14; color: #ffd75e; border: 1px solid #8a6f28;
                       font-family: monospace; font-size: clamp(13px, 1.3vw, 20px); padding: 10px; cursor: pointer; }
   #dlg-quest button:hover { background: #5f4d1a; }
+  #dlg-shop { display: none; padding: 6px 12px; border-top: 1px solid #39415c; }
+  #dlg-shop button { width: 100%; background: #23381a; color: #b8e89a; border: 1px solid #5a8a3a;
+                     font-family: monospace; font-size: clamp(13px, 1.3vw, 18px); padding: 10px; cursor: pointer; }
+  #dlg-shop button:hover { background: #2e4a22; }
   #dlg-status { font-size: clamp(10px, 0.85vw, 14px); padding: 5px 16px 8px; }
   #dlg-status.ok { color: #5a7a5a; }
   #dlg-status.bad { color: #d97a7a; }
@@ -53,6 +57,7 @@
     </div>
     <div id="dlg-log"></div>
     <div id="dlg-quest"><button id="dlg-quest-btn">&#9876; Accept quest: The Lost Blade</button></div>
+    <div id="dlg-shop"><button id="dlg-shop-btn">&#128176; Browse Odo's wares</button></div>
     <div id="dlg-row">
       <input id="dlg-input" autocomplete="off" spellcheck="false" placeholder="Say something... (Enter to send)">
       <button id="dlg-send">Send</button>
@@ -60,7 +65,7 @@
     <div id="dlg-status"></div>
   </div>
 </div>
-<p>W/S or &uarr;/&darr; walk &middot; A/D strafe &middot; &larr;/&rarr; turn &middot; click the view for mouse-look (tilts up/down; Esc releases) &middot; <b>F, SPACE or click attacks the monster in your sights</b> &middot; <b>1&ndash;4 cast readied spells, B spellbook, I inventory</b> &middot; T talks to villagers &middot; M toggles the map &middot; F11 fullscreen &middot; With Fly: R/X or PgUp/PgDn to rise and dive, cast again to land &middot; The fountain heals the party</p>
+<p>W/S or &uarr;/&darr; walk &middot; A/D strafe &middot; &larr;/&rarr; turn &middot; click the view for mouse-look (tilts up/down; Esc releases) &middot; <b>F, SPACE or click attacks the monster in your sights</b> &middot; <b>1&ndash;4 cast readied spells, B spellbook, I inventory</b> &middot; T talks to villagers &middot; M toggles the map &middot; F11 fullscreen &middot; progress auto-saves (N twice = new game) &middot; With Fly: R/X or PgUp/PgDn to rise and dive, cast again to land &middot; The fountain heals the party</p>
 <script src="vendor/phaser.min.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="src/data.js"></script>

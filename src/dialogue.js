@@ -27,6 +27,11 @@ const Dialogue = {
       this.villager.chat.push({ role: 'assistant', content: msg });
       this.addBubble('npc', msg);
     });
+    this.srow = document.getElementById('dlg-shop');
+    document.getElementById('dlg-shop-btn').addEventListener('click', () => {
+      this.close();
+      if (this.world) this.world.openShop();
+    });
     fetch('/api/llm').then(r => r.json()).then(j => { this.llm = j; }).catch(() => { this.llm = { available: false }; });
   },
 
@@ -52,6 +57,9 @@ const Dialogue = {
       entity.chat.push({ role: 'assistant', content: entity.villager.greeting });
       this.addBubble('npc', entity.villager.greeting);
     }
+
+    // Odo runs a shop
+    this.srow.style.display = entity.villager.id === 'odo' ? 'flex' : 'none';
 
     // quest hooks (Bram's Lost Blade)
     this.qrow.style.display = 'none';

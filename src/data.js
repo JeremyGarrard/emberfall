@@ -13,16 +13,18 @@ const SPELLS = {
 
 // ---- items: equipment adds real stats, potions restore, valuables sell ----
 const ITEM_TYPES = {
-  shortsword: { name: 'Short Sword',     kind: 'weapon', atk: 2, icon: 'it_sword' },
-  broadsword: { name: 'Broadsword',      kind: 'weapon', atk: 4, icon: 'it_bsword' },
-  huntbow:    { name: 'Hunting Bow',     kind: 'weapon', atk: 3, icon: 'it_bow' },
-  leather:    { name: 'Leather Jerkin',  kind: 'armor',  def: 1, icon: 'it_leather' },
-  chain:      { name: 'Chain Shirt',     kind: 'armor',  def: 3, icon: 'it_chain' },
-  hpotion:    { name: 'Healing Draught', kind: 'potion', heal: 22, icon: 'it_hpot' },
-  mpotion:    { name: 'Mana Philtre',    kind: 'potion', mana: 14, icon: 'it_mpot' },
+  shortsword: { name: 'Short Sword',     kind: 'weapon', atk: 2, icon: 'it_sword',   price: 70 },
+  broadsword: { name: 'Broadsword',      kind: 'weapon', atk: 4, icon: 'it_bsword',  price: 200 },
+  huntbow:    { name: 'Hunting Bow',     kind: 'weapon', atk: 3, icon: 'it_bow',     price: 120 },
+  leather:    { name: 'Leather Jerkin',  kind: 'armor',  def: 1, icon: 'it_leather', price: 60 },
+  chain:      { name: 'Chain Shirt',     kind: 'armor',  def: 3, icon: 'it_chain',   price: 160 },
+  hpotion:    { name: 'Healing Draught', kind: 'potion', heal: 22, icon: 'it_hpot',  price: 25 },
+  mpotion:    { name: 'Mana Philtre',    kind: 'potion', mana: 14, icon: 'it_mpot',  price: 30 },
   emerald:    { name: 'Rough Emerald',   kind: 'valuable', gold: 35, icon: 'it_gem' },
   lostblade:  { name: "Bram's Blade",    kind: 'quest', icon: 'it_blade' },
 };
+
+const SHOP_STOCK = ['hpotion', 'mpotion', 'leather', 'shortsword', 'huntbow', 'chain', 'broadsword'];
 
 function heroAtk(h) { return h.atk + (h.weapon ? ITEM_TYPES[h.weapon].atk || 0 : 0); }
 function heroDef(h) { return h.def + (h.armor ? ITEM_TYPES[h.armor].def || 0 : 0); }
@@ -121,6 +123,16 @@ const ENEMY_TYPES = {
 };
 
 function xpForLevel(level) { return level * 40; }
+
+// Seeded RNG for WORLD GENERATION only — a save stores the seed, so the same
+// vale regrows on load (combat/loot randomness stays on Math.random).
+let genSeed = 1;
+function setSeed(s) { genSeed = (s >>> 0) || 1; }
+function grand() {
+  genSeed = (genSeed * 1664525 + 1013904223) >>> 0;
+  return genSeed / 4294967296;
+}
+function gri(a, b) { return Math.floor(grand() * (b - a + 1)) + a; }
 
 // Small helpers
 function ri(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
