@@ -84,6 +84,14 @@ map; one dirt road runs east from the village gate, fording the river and cuttin
 through the hills. Monsters get meaner with distance: slimes near the walls, goblins in
 the midlands, dire wolves in the deep east.
 
+### Inventory & loot
+
+Press **I** for the party goods panel (MM7-style stone-and-parchment chrome, painted in
+code like everything else). Pick a hero, then click gear to equip it — weapons and armor
+add real ATK/DEF. Potions heal the selected hero, rough emeralds sell for gold. Chests
+now hold gear as well as gold (better loot farther out), and monsters sometimes drop
+potions or gems. The party bar shows painted portraits, MM7-style.
+
 ### Quests & magic
 
 - **The Lost Blade** — Bram the Smith's masterwork sword was stolen by goblins camped far

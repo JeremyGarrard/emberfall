@@ -3,13 +3,35 @@
 // ---- magic system: one registry, heroes know spells, keys 1-4 cast each
 // hero's readied "quick" spell, B opens the spellbook to swap it ----
 const SPELLS = {
-  cleave:     { name: 'Cleave',      cost: 3, desc: 'Sweep all foes within reach' },
-  doubleshot: { name: 'Double Shot', cost: 4, desc: 'Two arrows at your target' },
-  heal:       { name: 'Heal',        cost: 5, desc: 'Mend the most wounded ally' },
-  fireball:   { name: 'Fireball',    cost: 6, desc: 'Explodes on your target' },
-  frostnova:  { name: 'Frost Nova',  cost: 7, desc: 'Freeze and wound all foes around you' },
-  fly:        { name: 'Fly',         cost: 10, desc: 'Take wing: R/X (or PgUp/PgDn) to rise and dive. Cast again to land.' },
+  cleave:     { name: 'Cleave',      cost: 3, desc: 'Sweep all foes within reach', icon: 'ic_cleave' },
+  doubleshot: { name: 'Double Shot', cost: 4, desc: 'Two arrows at your target', icon: 'ic_dshot' },
+  heal:       { name: 'Heal',        cost: 5, desc: 'Mend the most wounded ally', icon: 'ic_heal' },
+  fireball:   { name: 'Fireball',    cost: 6, desc: 'Explodes on your target', icon: 'ic_fire' },
+  frostnova:  { name: 'Frost Nova',  cost: 7, desc: 'Freeze and wound all foes around you', icon: 'ic_frost' },
+  fly:        { name: 'Fly',         cost: 10, desc: 'Take wing: R/X to rise and dive. Cast again to land.', icon: 'ic_fly' },
 };
+
+// ---- items: equipment adds real stats, potions restore, valuables sell ----
+const ITEM_TYPES = {
+  shortsword: { name: 'Short Sword',     kind: 'weapon', atk: 2, icon: 'it_sword' },
+  broadsword: { name: 'Broadsword',      kind: 'weapon', atk: 4, icon: 'it_bsword' },
+  huntbow:    { name: 'Hunting Bow',     kind: 'weapon', atk: 3, icon: 'it_bow' },
+  leather:    { name: 'Leather Jerkin',  kind: 'armor',  def: 1, icon: 'it_leather' },
+  chain:      { name: 'Chain Shirt',     kind: 'armor',  def: 3, icon: 'it_chain' },
+  hpotion:    { name: 'Healing Draught', kind: 'potion', heal: 22, icon: 'it_hpot' },
+  mpotion:    { name: 'Mana Philtre',    kind: 'potion', mana: 14, icon: 'it_mpot' },
+  emerald:    { name: 'Rough Emerald',   kind: 'valuable', gold: 35, icon: 'it_gem' },
+  lostblade:  { name: "Bram's Blade",    kind: 'quest', icon: 'it_blade' },
+};
+
+function heroAtk(h) { return h.atk + (h.weapon ? ITEM_TYPES[h.weapon].atk || 0 : 0); }
+function heroDef(h) { return h.def + (h.armor ? ITEM_TYPES[h.armor].def || 0 : 0); }
+function invAdd(id) {
+  const i = GameData.inventory.indexOf(null);
+  if (i < 0) return false;
+  GameData.inventory[i] = id;
+  return true;
+}
 
 function makeHero(name, cls, stats) {
   return {
@@ -20,6 +42,7 @@ function makeHero(name, cls, stats) {
     atk: stats.atk, def: stats.def,
     spells: stats.spells.slice(), // known spell ids
     quick: stats.spells[0],       // readied on this hero's hotkey
+    weapon: null, armor: null,    // equipped item ids
     range: stats.range,           // tiles; how far this hero's basic attack reaches
     rec: stats.rec,               // ms between attacks
     readyAt: 0,
@@ -36,7 +59,16 @@ const GameData = {
   ],
   flags: { hasLostBlade: false },
   quests: { lostblade: 'available' }, // available -> active -> found -> done
+  inventory: new Array(32).fill(null),
 };
+
+// the party sets out with a modest kit
+GameData.party[0].weapon = 'shortsword';
+GameData.party[0].armor = 'leather';
+GameData.party[1].weapon = 'huntbow';
+GameData.inventory[0] = 'hpotion';
+GameData.inventory[1] = 'hpotion';
+GameData.inventory[2] = 'mpotion';
 
 const QUESTS = {
   lostblade: {

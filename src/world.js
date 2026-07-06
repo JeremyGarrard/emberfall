@@ -65,6 +65,14 @@ function makeArt(key, draw, size = 32) {
   return c;
 }
 
+function makeArtWH(key, w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  ART[key] = c;
+  return c;
+}
+
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
@@ -526,6 +534,227 @@ class BootScene extends Phaser.Scene {
       ell(g, 25, 24, 3.5, 4, '#d9a520');
     });
 
+    // ================= MM7-style UI art =================
+
+    // stone frame + parchment (or dark leather) field
+    const paintPanel = (g, w, h, dark) => {
+      if (dark) {
+        g.fillStyle = '#2e2a22'; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < w * h / 260; i++) {
+          g.fillStyle = rnd() < 0.5 ? '#282419' : '#35302a';
+          g.fillRect(rnd() * (w - 8), rnd() * (h - 5), 4 + rnd() * 7, 2 + rnd() * 4);
+        }
+      } else {
+        g.fillStyle = '#c9b184'; g.fillRect(0, 0, w, h);
+        const tones = ['#c2a878', '#d0ba8e', '#bfa678', '#cbb488'];
+        for (let i = 0; i < w * h / 220; i++) {
+          g.fillStyle = tones[(rnd() * tones.length) | 0];
+          g.fillRect(rnd() * (w - 10), rnd() * (h - 6), 5 + rnd() * 9, 2 + rnd() * 5);
+        }
+      }
+      const F = 14; // stone frame
+      g.fillStyle = '#4e525c';
+      g.fillRect(0, 0, w, F); g.fillRect(0, h - F, w, F);
+      g.fillRect(0, 0, F, h); g.fillRect(w - F, 0, F, h);
+      g.fillStyle = '#6a6f7a'; // lit bevel
+      g.fillRect(0, 0, w, 3); g.fillRect(0, 0, 3, h);
+      g.fillStyle = '#33363e'; // shadow bevel
+      g.fillRect(0, h - 3, w, 3); g.fillRect(w - 3, 0, 3, h);
+      for (let i = 0; i < (w + h) / 30; i++) { // stone cracks
+        g.fillStyle = '#43474f';
+        const side = rnd() < 0.5;
+        g.fillRect(side ? rnd() * w : (rnd() < 0.5 ? 2 : w - F + 2), side ? (rnd() < 0.5 ? 3 : h - F + 3) : rnd() * h, side ? 8 : 2, side ? 2 : 8);
+      }
+      g.strokeStyle = '#c9a227'; g.lineWidth = 2; // gold trim
+      g.strokeRect(F + 2, F + 2, w - 2 * F - 4, h - 2 * F - 4);
+      for (const [cx, cy] of [[7, 7], [w - 7, 7], [7, h - 7], [w - 7, h - 7]]) {
+        ell(g, cx, cy, 4, 4, '#c9a227');
+        ell(g, cx - 1, cy - 1, 1.5, 1.5, '#f0d060');
+      }
+    };
+    makeArtWH('panel_ui', 780, 470, (g, w, h) => paintPanel(g, w, h, false));
+    makeArtWH('panel_hud', 960, 130, (g, w, h) => {
+      paintPanel(g, w, h, true);
+      g.fillStyle = '#4e525c'; // divider columns between hero sections
+      for (let i = 1; i < 4; i++) g.fillRect(i * 236 + 4, 8, 4, h - 16);
+    });
+    makeArtWH('slot', 40, 40, g => {
+      g.fillStyle = '#4a4032'; g.fillRect(0, 0, 40, 40);
+      g.fillStyle = '#3a3226'; g.fillRect(2, 2, 36, 36);
+      g.fillStyle = '#2e281e'; g.fillRect(2, 2, 36, 3); g.fillRect(2, 2, 3, 36);
+      g.fillStyle = '#5a4e3a'; g.fillRect(2, 35, 36, 3); g.fillRect(35, 2, 3, 36);
+    });
+
+    // -- portraits, 64px busts --
+    makeArtWH('pt_roderick', 64, 64, g => {
+      g.fillStyle = '#232833'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#5a616e'; g.fillRect(6, 50, 52, 14);        // pauldrons
+      ell(g, 32, 38, 15, 17, '#e8c39e');                          // face
+      g.fillStyle = '#8d9099';                                    // helm
+      ell(g, 32, 20, 18, 13, '#8d9099');
+      g.fillRect(14, 18, 36, 10);
+      g.fillRect(29, 5, 6, 12);
+      g.fillStyle = '#6a6f7a'; g.fillRect(14, 26, 36, 2);
+      g.fillStyle = '#6b4a2e'; g.fillRect(21, 46, 22, 12);        // beard
+      ell(g, 26, 36, 2.4, 3, '#232833'); ell(g, 38, 36, 2.4, 3, '#232833');
+      g.fillStyle = '#c9976e'; g.fillRect(30, 38, 4, 6);          // nose
+    });
+    makeArtWH('pt_wren', 64, 64, g => {
+      g.fillStyle = '#1f2b1f'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#3c5c34'; g.fillRect(8, 52, 48, 12);         // cloak
+      ell(g, 32, 38, 13, 15, '#e0b48e');                          // face
+      g.fillStyle = '#3c5c34';                                    // hood
+      ell(g, 32, 22, 17, 14, '#3c5c34');
+      g.fillRect(15, 20, 34, 8);
+      tri(g, [15, 28, 20, 44, 15, 46], '#3c5c34');
+      tri(g, [49, 28, 44, 44, 49, 46], '#3c5c34');
+      g.fillStyle = '#d0b040'; tri(g, [44, 8, 52, 22, 46, 22]);   // feather
+      ell(g, 27, 36, 2.2, 2.8, '#1f2b1f'); ell(g, 38, 36, 2.2, 2.8, '#1f2b1f');
+      g.fillStyle = '#b88a60'; g.fillRect(31, 38, 3, 5);
+    });
+    makeArtWH('pt_serena', 64, 64, g => {
+      g.fillStyle = '#2e2838'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#e8e4da'; g.fillRect(10, 52, 44, 12);        // robe
+      ell(g, 32, 38, 13, 15, '#f0cca8');                          // face
+      g.fillStyle = '#d9c26a';                                    // hair
+      ell(g, 32, 24, 16, 13, '#d9c26a');
+      g.fillRect(16, 24, 8, 26); g.fillRect(40, 24, 8, 26);
+      g.strokeStyle = '#c9a227'; g.lineWidth = 3;                 // circlet
+      g.beginPath(); g.moveTo(18, 20); g.lineTo(46, 20); g.stroke();
+      ell(g, 32, 19, 2.5, 2.5, '#6fb0e8');
+      ell(g, 27, 36, 2.2, 2.8, '#2e2838'); ell(g, 38, 36, 2.2, 2.8, '#2e2838');
+      g.fillStyle = '#d8a888'; g.fillRect(31, 38, 3, 5);
+    });
+    makeArtWH('pt_malwick', 64, 64, g => {
+      g.fillStyle = '#241f30'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#4a3a6a'; g.fillRect(8, 52, 48, 12);         // robe
+      ell(g, 32, 40, 13, 14, '#e0c0a0');                          // face
+      g.fillStyle = '#d4d8de'; g.fillRect(22, 48, 20, 14);        // gray beard
+      ell(g, 32, 52, 10, 9, '#d4d8de');
+      g.fillStyle = '#5a4088';                                    // wizard hat
+      tri(g, [32, 2, 12, 30, 52, 30], '#5a4088');
+      ell(g, 32, 30, 22, 5, '#5a4088');
+      ell(g, 40, 14, 2, 2, '#d0b040');                            // star
+      ell(g, 27, 38, 2.2, 2.6, '#241f30'); ell(g, 38, 38, 2.2, 2.6, '#241f30');
+    });
+
+    // -- item icons, 32px --
+    makeArt('it_sword', g => {
+      g.fillStyle = '#c8ccd4'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-2, -13, 4, 20); g.fillStyle = '#f0f2f6'; g.fillRect(-2, -13, 2, 20);
+      g.fillStyle = '#c9a227'; g.fillRect(-6, 7, 12, 3); g.fillStyle = '#6b4526'; g.fillRect(-1.5, 10, 3, 6);
+      g.restore();
+    });
+    makeArt('it_bsword', g => {
+      g.fillStyle = '#9aa2b0'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-3, -14, 6, 22); g.fillStyle = '#c8ccd4'; g.fillRect(-3, -14, 3, 22);
+      g.fillStyle = '#c9a227'; g.fillRect(-8, 8, 16, 3); g.fillStyle = '#4a2f16'; g.fillRect(-2, 11, 4, 6);
+      g.restore();
+    });
+    makeArt('it_bow', g => {
+      g.strokeStyle = '#8a6238'; g.lineWidth = 3;
+      g.beginPath(); g.arc(12, 16, 12, -Math.PI / 2.4, Math.PI / 2.4); g.stroke();
+      g.strokeStyle = '#e8e4da'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(16, 5); g.lineTo(16, 27); g.stroke();
+      g.strokeStyle = '#6b4526'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(8, 16); g.lineTo(26, 16); g.stroke();
+      g.fillStyle = '#c8ccd4'; tri(g, [26, 16, 22, 13, 22, 19]);
+    });
+    makeArt('it_leather', g => {
+      g.fillStyle = '#8a5a2a'; g.fillRect(9, 8, 14, 18);
+      g.fillRect(5, 8, 6, 8); g.fillRect(21, 8, 6, 8);
+      g.fillStyle = '#6b4526'; g.fillRect(15, 8, 2, 18);
+      g.fillStyle = '#a8763a'; g.fillRect(9, 8, 14, 3);
+    });
+    makeArt('it_chain', g => {
+      g.fillStyle = '#7a8090'; g.fillRect(9, 8, 14, 18);
+      g.fillRect(5, 8, 6, 8); g.fillRect(21, 8, 6, 8);
+      g.fillStyle = '#5a616e';
+      for (let y = 10; y < 25; y += 4) for (let x = 10 + (y % 8 === 2 ? 2 : 0); x < 22; x += 4) {
+        g.beginPath(); g.arc(x, y, 1.4, 0, Math.PI * 2); g.fill();
+      }
+    });
+    const paintPotion = (g, liquid, glow) => {
+      g.fillStyle = '#b8c4cc'; g.fillRect(13, 4, 6, 5);
+      g.fillStyle = '#6b4526'; g.fillRect(12, 2, 8, 3);
+      g.fillStyle = 'rgba(200,215,225,0.5)';
+      g.beginPath(); g.arc(16, 20, 9, 0, Math.PI * 2); g.fill();
+      g.fillStyle = liquid;
+      g.beginPath(); g.arc(16, 21, 7.5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = glow; ell(g, 13, 18, 2.5, 3, glow);
+    };
+    makeArt('it_hpot', g => paintPotion(g, '#a82430', '#e86a70'));
+    makeArt('it_mpot', g => paintPotion(g, '#2848a8', '#6a90e8'));
+    makeArt('it_gem', g => {
+      g.fillStyle = '#2a9a5a'; tri(g, [16, 4, 4, 14, 28, 14]);
+      tri(g, [4, 14, 16, 28, 28, 14], '#238a4e');
+      g.fillStyle = '#5fd490'; tri(g, [16, 4, 10, 14, 20, 14]);
+      g.fillStyle = '#8af0b8'; g.fillRect(13, 8, 3, 3);
+    });
+    makeArt('it_blade', g => {
+      g.fillStyle = '#d9a520'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-2.5, -14, 5, 21); g.fillStyle = '#f0d060'; g.fillRect(-2.5, -14, 2.5, 21);
+      g.fillStyle = '#c9a227'; g.fillRect(-7, 7, 14, 3); g.fillStyle = '#6b4526'; g.fillRect(-2, 10, 4, 6);
+      g.restore();
+      g.fillStyle = '#fff2c8'; ell(g, 8, 8, 2, 2, '#fff2c8');
+    });
+
+    // -- spell icons, 32px --
+    makeArt('ic_cleave', g => {
+      g.strokeStyle = '#c8ccd4'; g.lineWidth = 4;
+      g.beginPath(); g.arc(16, 22, 11, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+      g.fillStyle = '#e8e8e8'; g.save(); g.translate(16, 14); g.rotate(0.5);
+      g.fillRect(-1.5, -10, 3, 16); g.restore();
+      g.fillStyle = '#c9a227'; g.fillRect(11, 18, 10, 3);
+    });
+    makeArt('ic_dshot', g => {
+      g.strokeStyle = '#d0b040'; g.lineWidth = 2.5;
+      for (const o of [-4, 4]) {
+        g.beginPath(); g.moveTo(6, 22 + o); g.lineTo(24, 8 + o); g.stroke();
+        g.fillStyle = '#e8e8e8'; tri(g, [26, 6 + o, 20, 8 + o, 24, 12 + o]);
+      }
+    });
+    makeArt('ic_heal', g => {
+      g.fillStyle = 'rgba(240,220,140,0.5)';
+      g.beginPath(); g.arc(16, 16, 12, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#f0e6c8'; g.fillRect(13, 6, 6, 20); g.fillRect(6, 13, 20, 6);
+      g.fillStyle = '#c9a227'; g.fillRect(14, 7, 2, 18); g.fillRect(7, 14, 2, 4);
+    });
+    makeArt('ic_fire', g => {
+      g.fillStyle = '#c8622a';
+      g.beginPath(); g.arc(16, 18, 9, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#f0a04a';
+      g.beginPath(); g.arc(16, 18, 6, 0, Math.PI * 2); g.fill();
+      tri(g, [16, 2, 10, 12, 22, 12], '#f0a04a');
+      tri(g, [16, 5, 13, 12, 19, 12], '#f8d060');
+      g.fillStyle = '#f8d060'; ell(g, 14, 16, 2.5, 3, '#f8d060');
+    });
+    makeArt('ic_frost', g => {
+      g.strokeStyle = '#9ad8f0'; g.lineWidth = 3;
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3;
+        g.beginPath(); g.moveTo(16, 16);
+        g.lineTo(16 + Math.cos(a) * 12, 16 + Math.sin(a) * 12); g.stroke();
+      }
+      ell(g, 16, 16, 4, 4, '#e8f6ff');
+    });
+    makeArt('ic_fly', g => {
+      g.fillStyle = '#e8f0f8';
+      for (const [ox, s] of [[0, 1], [2, 0.7], [4, 0.45]]) {
+        g.beginPath();
+        g.ellipse(14 - ox * 2, 18 + ox * 2, 12 * s, 4.5 * s, -0.5, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = '#9ad8f0'; ell(g, 24, 10, 3, 3, '#9ad8f0');
+    });
+
+    // register everything the Phaser UI needs as textures
+    ['panel_ui', 'panel_hud', 'slot',
+     'pt_roderick', 'pt_wren', 'pt_serena', 'pt_malwick',
+     'it_sword', 'it_bsword', 'it_bow', 'it_leather', 'it_chain', 'it_hpot', 'it_mpot', 'it_gem', 'it_blade',
+     'ic_cleave', 'ic_dshot', 'ic_heal', 'ic_fire', 'ic_frost', 'ic_fly',
+    ].forEach(k => this.textures.addCanvas(k, ART[k]));
+
     this.scene.start('World');
   }
 }
@@ -580,12 +809,14 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,Q,E,M,R,X,UP,DOWN,LEFT,RIGHT,SPACE,ONE,TWO,THREE,FOUR,PAGE_UP,PAGE_DOWN');
     this.input.keyboard.on('keydown-M', () => { this.mmContainer.visible = !this.mmContainer.visible; });
     this.input.keyboard.on('keydown-T', () => {
-      if (!this.dead && !this.dialogOpen && this.nearVillager) this.openDialogue(this.nearVillager);
+      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && this.nearVillager) {
+        this.openDialogue(this.nearVillager);
+      }
     });
 
     // click: grab mouse-look if not locked, and swing at whatever's in your sights
     this.input.on('pointerdown', () => {
-      if (this.dialogOpen || this.dead || this.sbOpen) return;
+      if (this.dialogOpen || this.dead || this.sbOpen || this.invOpen) return;
       if (document.pointerLockElement !== this.game.canvas) this.game.canvas.requestPointerLock();
       this.partyAttack(this.time.now);
     });
@@ -610,9 +841,18 @@ class WorldScene extends Phaser.Scene {
     this.buildMinimap();
     this.buildHUD();
     this.buildSpellbook();
+    this.buildInventoryUI();
     this.input.keyboard.on('keydown-B', () => {
       if (this.dialogOpen || this.dead) return;
       if (this.sbOpen) this.closeSpellbook(); else this.openSpellbook();
+    });
+    this.input.keyboard.on('keydown-I', () => {
+      if (this.dialogOpen || this.dead) return;
+      if (this.invOpen) this.closeInventory(); else this.openInventory();
+    });
+    this.input.keyboard.on('keydown-ESC', () => {
+      if (this.sbOpen) this.closeSpellbook();
+      if (this.invOpen) this.closeInventory();
     });
 
     this.compass = this.add.text(480, 8, '', {
@@ -1147,13 +1387,23 @@ class WorldScene extends Phaser.Scene {
         const gold = ri(12, 35);
         GameData.gold += gold;
         this.entities.splice(this.entities.indexOf(c), 1);
-        this.toast(`You found a chest! +${gold} gold`);
+        let itemMsg = '';
+        if (Math.random() < 0.75) {
+          const far = dist(c.x, c.y, START.x, START.y) > 40;
+          const table = far
+            ? ['broadsword', 'chain', 'emerald', 'hpotion', 'mpotion', 'emerald']
+            : ['shortsword', 'leather', 'hpotion', 'hpotion', 'mpotion', 'emerald'];
+          const id = table[ri(0, table.length - 1)];
+          if (invAdd(id)) itemMsg = ` + ${ITEM_TYPES[id].name}`;
+        }
+        this.toast(`You found a chest! +${gold} gold${itemMsg}`);
         this.refreshHUD();
       }
       for (const it of picked) {
         this.entities.splice(this.entities.indexOf(it), 1);
         GameData.flags.hasLostBlade = true;
         if (GameData.quests.lostblade !== 'done') GameData.quests.lostblade = 'found';
+        invAdd('lostblade');
         this.toast('You recover a masterwork blade! Bram will want to see this.');
         this.refreshHUD();
       }
@@ -1236,7 +1486,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   partyAttack(time) {
-    if (this.dead || this.dialogOpen || this.sbOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen) return;
     const t = this.target;
     if (!t) {
       if (time > (this._attackMsgCd || 0)) { this.toast('No monster in your sights.'); this._attackMsgCd = time + 1500; }
@@ -1248,7 +1498,7 @@ class WorldScene extends Phaser.Scene {
       if (h.hp <= 0 || time < h.readyAt || d > h.range) continue;
       h.readyAt = time + h.rec;
       fired++;
-      this.damageEnemy(t, Math.max(1, h.atk + h.level + ri(0, 3) - t.def));
+      this.damageEnemy(t, Math.max(1, heroAtk(h) + h.level + ri(0, 3) - t.def));
       if (t.hp <= 0) break;
     }
     if (!fired && time > (this._attackMsgCd || 0)) {
@@ -1258,7 +1508,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   castSkill(idx, time) {
-    if (this.dead || this.dialogOpen || this.sbOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen) return;
     const h = GameData.party[idx];
     if (!h || h.hp <= 0) return;
     if (h.quick === 'fly' && this.flying) { // landing is always free
@@ -1277,16 +1527,16 @@ class WorldScene extends Phaser.Scene {
       case 'cleave': {
         const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 2.6);
         if (!victims.length) { this.toast('No foes within reach of the cleave!'); return; }
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(h.atk * 0.7) + h.level + ri(0, 2) - v.def)));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + h.level + ri(0, 2) - v.def)));
         ok = true;
         break;
       }
       case 'doubleshot': {
         if (!t || tDist > 9) { this.toast('No target in bow range!'); return; }
-        this.damageEnemy(t, Math.max(1, Math.round(h.atk * 0.8) + h.level + ri(0, 2) - t.def));
+        this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + h.level + ri(0, 2) - t.def));
         this.time.delayedCall(160, () => {
           if (t.hp > 0 && this.entities.includes(t)) {
-            this.damageEnemy(t, Math.max(1, Math.round(h.atk * 0.8) + h.level + ri(0, 2) - t.def));
+            this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + h.level + ri(0, 2) - t.def));
           }
         });
         ok = true;
@@ -1356,7 +1606,14 @@ class WorldScene extends Phaser.Scene {
     const notes = this.grantXP(e.xp);
     this.entities.splice(this.entities.indexOf(e), 1);
     if (this.target === e) this.target = null;
-    this.toast(`${ENEMY_TYPES[e.type].name} slain! +${e.xp} XP, +${gold} gold` + (notes.length ? ' — ' + notes.join(' ') : ''));
+    let dropMsg = '';
+    if (Math.random() < 0.22) {
+      const id = e.type === 'wolf'
+        ? (Math.random() < 0.5 ? 'emerald' : 'hpotion')
+        : (Math.random() < 0.5 ? 'hpotion' : 'mpotion');
+      if (invAdd(id)) dropMsg = `, ${ITEM_TYPES[id].name}`;
+    }
+    this.toast(`${ENEMY_TYPES[e.type].name} slain! +${e.xp} XP, +${gold} gold${dropMsg}` + (notes.length ? ' — ' + notes.join(' ') : ''));
     if (!this.entities.some(x => x.kind === 'enemy')) {
       this.time.delayedCall(1500, () => this.toast('The vale is at peace... you cleared every monster!'));
     }
@@ -1368,7 +1625,7 @@ class WorldScene extends Phaser.Scene {
     const targets = GameData.party.filter(h => h.hp > 0);
     if (!targets.length) return;
     const h = targets[ri(0, targets.length - 1)];
-    const dmg = Math.max(1, e.atk + ri(-1, 2) - h.def);
+    const dmg = Math.max(1, e.atk + ri(-1, 2) - heroDef(h));
     h.hp = Math.max(0, h.hp - dmg);
     this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, `-${dmg}`, '#ff8080');
     this.tweens.add({ targets: this.dmgVignette, alpha: { from: 0.32, to: 0 }, duration: 300 });
@@ -1440,35 +1697,43 @@ class WorldScene extends Phaser.Scene {
     this.sbOpen = false;
     this.sbItems = [];
     this.sbContainer = this.add.container(0, 0).setDepth(3000).setVisible(false);
-    this.sbContainer.add(this.add.rectangle(480, 250, 760, 360, 0x10131c, 0.96).setStrokeStyle(2, 0x4a5578));
-    this.sbContainer.add(this.add.text(480, 92, 'SPELLBOOK', { fontFamily: 'monospace', fontSize: '18px', color: '#ffd75e' }).setOrigin(0.5));
-    this.sbContainer.add(this.add.text(480, 116, "click a spell to ready it on that hero's key — B closes", { fontFamily: 'monospace', fontSize: '11px', color: '#8891ad' }).setOrigin(0.5));
+    this.sbContainer.add(this.add.image(480, 250, 'panel_ui'));
+    this.sbContainer.add(this.add.text(480, 54, '— SPELLBOOK —', {
+      fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    this.sbContainer.add(this.add.text(480, 80, "click a spell to ready it on that hero's key  ·  B closes", {
+      fontFamily: 'monospace', fontSize: '12px', color: '#6a5636',
+    }).setOrigin(0.5));
   }
 
   openSpellbook() {
+    if (this.invOpen) this.closeInventory();
     this.sbOpen = true;
     for (const t of this.sbItems) t.destroy();
     this.sbItems = [];
+    const add = o => { this.sbItems.push(o.setDepth(3001)); return o; };
     GameData.party.forEach((h, i) => {
-      const x = 150 + i * 190;
-      const head = this.add.text(x, 148, `${h.name}\n${h.cls}`, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', align: 'center',
-      }).setOrigin(0.5, 0).setDepth(3001);
-      this.sbItems.push(head);
+      const x = 168 + i * 158;
+      add(this.add.image(x, 128, 'pt_' + h.name.toLowerCase()).setDisplaySize(56, 56));
+      add(this.add.rectangle(x, 128, 58, 58).setStrokeStyle(2, 0xc9a227));
+      add(this.add.text(x, 160, h.name, {
+        fontFamily: 'monospace', fontSize: '13px', color: '#3a2c14', fontStyle: 'bold',
+      }).setOrigin(0.5, 0));
       h.spells.forEach((id, j) => {
         const sp = SPELLS[id];
-        const item = this.add.text(x, 202 + j * 52, `${sp.name}  (${sp.cost}mp)\n${sp.desc}`, {
-          fontFamily: 'monospace', fontSize: '11px', align: 'center',
-          color: h.quick === id ? '#ffd75e' : '#9aa4c8',
-          backgroundColor: h.quick === id ? 'rgba(90,74,20,0.55)' : 'rgba(38,46,74,0.6)',
-          padding: { x: 8, y: 5 },
-        }).setOrigin(0.5, 0).setDepth(3001).setInteractive({ useHandCursor: true });
-        item.on('pointerdown', () => {
-          h.quick = id;
-          this.refreshHUD();
-          this.openSpellbook(); // rebuild to move the highlight
-        });
-        this.sbItems.push(item);
+        const y = 210 + j * 58;
+        const readied = h.quick === id;
+        const box = add(this.add.rectangle(x, y, 142, 50, readied ? 0x8a6f28 : 0x4a4032, readied ? 0.35 : 0.15)
+          .setStrokeStyle(readied ? 3 : 1, readied ? 0xc9a227 : 0x6a5a38))
+          .setInteractive({ useHandCursor: true });
+        box.on('pointerdown', () => { h.quick = id; this.refreshHUD(); this.openSpellbook(); });
+        add(this.add.image(x - 48, y, sp.icon).setDisplaySize(32, 32));
+        add(this.add.text(x - 27, y - 17, sp.name, {
+          fontFamily: 'monospace', fontSize: '12px', color: '#3a2c14', fontStyle: 'bold',
+        }));
+        add(this.add.text(x - 27, y + 2, sp.cost + ' mp', {
+          fontFamily: 'monospace', fontSize: '11px', color: '#7a1f1f',
+        }));
       });
     });
     this.sbContainer.setVisible(true);
@@ -1479,6 +1744,126 @@ class WorldScene extends Phaser.Scene {
     this.sbContainer.setVisible(false);
     for (const t of this.sbItems) t.destroy();
     this.sbItems = [];
+  }
+
+  // ---------- inventory (I) ----------
+
+  buildInventoryUI() {
+    this.invOpen = false;
+    this.invSel = 0;
+    this.invItems = [];
+    this.invContainer = this.add.container(0, 0).setDepth(3000).setVisible(false);
+    this.invContainer.add(this.add.image(480, 250, 'panel_ui'));
+    this.invContainer.add(this.add.text(480, 54, '— PARTY GOODS —', {
+      fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
+    }).setOrigin(0.5));
+  }
+
+  openInventory() {
+    if (this.sbOpen) this.closeSpellbook();
+    this.invOpen = true;
+    this.refreshInventory();
+    this.invContainer.setVisible(true);
+  }
+
+  closeInventory() {
+    this.invOpen = false;
+    this.invContainer.setVisible(false);
+    for (const o of this.invItems) o.destroy();
+    this.invItems = [];
+  }
+
+  refreshInventory() {
+    for (const o of this.invItems) o.destroy();
+    this.invItems = [];
+    const add = o => { this.invItems.push(o.setDepth(3001)); return o; };
+
+    GameData.party.forEach((h, i) => {
+      const x = 168 + i * 158, y = 76;
+      const sel = i === this.invSel;
+      const frame = add(this.add.rectangle(x, y, 140, 128, 0x8a6f28, sel ? 0.25 : 0.06)
+        .setOrigin(0.5, 0)
+        .setStrokeStyle(sel ? 3 : 1, sel ? 0xc9a227 : 0x6a5a38))
+        .setInteractive({ useHandCursor: true });
+      frame.on('pointerdown', () => { this.invSel = i; this.refreshInventory(); });
+      add(this.add.image(x - 32, y + 34, 'pt_' + h.name.toLowerCase()).setDisplaySize(52, 52));
+      add(this.add.text(x + 2, y + 12, h.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#3a2c14', fontStyle: 'bold',
+      }));
+      add(this.add.text(x + 2, y + 30, `ATK ${heroAtk(h)}`, { fontFamily: 'monospace', fontSize: '11px', color: '#7a1f1f' }));
+      add(this.add.text(x + 2, y + 46, `DEF ${heroDef(h)}`, { fontFamily: 'monospace', fontSize: '11px', color: '#28527a' }));
+      [['weapon', x - 24], ['armor', x + 24]].forEach(([slot, sx]) => {
+        const sy = y + 96;
+        const cell = add(this.add.image(sx, sy, 'slot')).setInteractive({ useHandCursor: true });
+        cell.on('pointerdown', () => this.unequip(i, slot));
+        if (h[slot]) add(this.add.image(sx, sy, ITEM_TYPES[h[slot]].icon).setDisplaySize(30, 30));
+        else add(this.add.text(sx, sy, slot === 'weapon' ? 'W' : 'A', {
+          fontFamily: 'monospace', fontSize: '12px', color: '#6a5a38',
+        }).setOrigin(0.5));
+      });
+    });
+
+    const x0 = 314, y0 = 250, C = 42;
+    GameData.inventory.forEach((id, idx) => {
+      const gx = x0 + (idx % 8) * C, gy = y0 + Math.floor(idx / 8) * C;
+      const cell = add(this.add.image(gx, gy, 'slot')).setInteractive({ useHandCursor: true });
+      cell.on('pointerdown', () => this.clickItem(idx));
+      if (id) add(this.add.image(gx, gy, ITEM_TYPES[id].icon).setDisplaySize(30, 30));
+    });
+
+    add(this.add.text(480, 428, `Gold: ${GameData.gold}`, {
+      fontFamily: 'monospace', fontSize: '16px', color: '#7a5a10', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    add(this.add.text(480, 452, 'pick a hero, then click gear to equip · potions heal that hero · gems sell · I closes', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#6a5636',
+    }).setOrigin(0.5));
+  }
+
+  clickItem(idx) {
+    const id = GameData.inventory[idx];
+    if (!id) return;
+    const it = ITEM_TYPES[id];
+    const h = GameData.party[this.invSel];
+    if (it.kind === 'potion') {
+      if (h.hp <= 0) { this.toast(`${h.name} is down — only the fountain can help.`); return; }
+      if (it.heal) {
+        if (h.hp >= h.maxHp) { this.toast(`${h.name} is already hale.`); return; }
+        h.hp = Math.min(h.maxHp, h.hp + it.heal);
+      }
+      if (it.mana) {
+        if (h.mp >= h.maxMp) { this.toast(`${h.name}'s mana brims already.`); return; }
+        h.mp = Math.min(h.maxMp, h.mp + it.mana);
+      }
+      GameData.inventory[idx] = null;
+      this.toast(`${h.name} drinks the ${it.name}.`);
+    } else if (it.kind === 'weapon' || it.kind === 'armor') {
+      const prev = h[it.kind];
+      h[it.kind] = id;
+      GameData.inventory[idx] = prev || null;
+      this.toast(`${h.name} equips the ${it.name}.`);
+    } else if (it.kind === 'valuable') {
+      GameData.gold += it.gold;
+      GameData.inventory[idx] = null;
+      this.toast(`Marked for Odo's ledger: +${it.gold} gold.`);
+    } else {
+      this.toast(`${it.name} — Bram will want to see this.`);
+      return;
+    }
+    this.refreshHUD();
+    this.refreshInventory();
+  }
+
+  unequip(heroIdx, slot) {
+    const h = GameData.party[heroIdx];
+    this.invSel = heroIdx;
+    if (h[slot]) {
+      const free = GameData.inventory.indexOf(null);
+      if (free < 0) { this.toast('Your packs are full!'); return; }
+      GameData.inventory[free] = h[slot];
+      h[slot] = null;
+      this.refreshHUD();
+    }
+    this.refreshInventory();
   }
 
   // ---------- minimap ----------
@@ -1541,20 +1926,20 @@ class WorldScene extends Phaser.Scene {
   // ---------- HUD ----------
 
   buildHUD() {
-    this.add.rectangle(0, 510, 960, 130, 0x10131c).setOrigin(0).setDepth(999);
+    this.add.image(0, 510, 'panel_hud').setOrigin(0).setDepth(999);
     this.hudRows = [];
     GameData.party.forEach((h, i) => {
-      const x = 12 + i * 236, y = 518;
-      this.add.rectangle(x, y, 226, 114, 0x1c2233).setOrigin(0).setStrokeStyle(1, 0x39415c).setDepth(1000);
-      const name = this.add.text(x + 10, y + 8, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ffffff' }).setDepth(1001);
-      const cls = this.add.text(x + 10, y + 26, h.cls, { fontFamily: 'monospace', fontSize: '11px', color: '#9aa4c8' }).setDepth(1001);
-      const hpBg = this.add.rectangle(x + 10, y + 52, 206, 10, 0x46151a).setOrigin(0, 0.5).setDepth(1001);
-      const hpBar = this.add.rectangle(x + 10, y + 52, 206, 10, 0x3ecf5a).setOrigin(0, 0.5).setDepth(1002);
-      const mpBg = this.add.rectangle(x + 10, y + 68, 206, 7, 0x141a3a).setOrigin(0, 0.5).setDepth(1001);
-      const mpBar = this.add.rectangle(x + 10, y + 68, 206, 7, 0x4a86e8).setOrigin(0, 0.5).setDepth(1002);
-      const hpText = this.add.text(x + 10, y + 80, '', { fontFamily: 'monospace', fontSize: '11px', color: '#8891ad' }).setDepth(1001);
-      const sk = this.add.text(x + 10, y + 96, '', { fontFamily: 'monospace', fontSize: '10px', color: '#c8b060' }).setDepth(1001);
-      this.hudRows.push({ name, hpBar, mpBar, hpText, sk, skReady: true });
+      const x = 16 + i * 236, y = 522;
+      const portrait = this.add.image(x, y, 'pt_' + h.name.toLowerCase()).setOrigin(0).setDisplaySize(58, 58).setDepth(1001);
+      this.add.rectangle(x - 1, y - 1, 60, 60).setOrigin(0).setStrokeStyle(2, 0xc9a227).setDepth(1002);
+      const name = this.add.text(x + 66, y - 2, '', { fontFamily: 'monospace', fontSize: '14px', color: '#f0e6c8' }).setDepth(1001);
+      const hpBg = this.add.rectangle(x + 66, y + 22, 148, 10, 0x46151a).setOrigin(0, 0.5).setDepth(1001);
+      const hpBar = this.add.rectangle(x + 66, y + 22, 148, 10, 0x3ecf5a).setOrigin(0, 0.5).setDepth(1002);
+      const mpBg = this.add.rectangle(x + 66, y + 36, 148, 7, 0x141a3a).setOrigin(0, 0.5).setDepth(1001);
+      const mpBar = this.add.rectangle(x + 66, y + 36, 148, 7, 0x4a86e8).setOrigin(0, 0.5).setDepth(1002);
+      const hpText = this.add.text(x + 66, y + 44, '', { fontFamily: 'monospace', fontSize: '11px', color: '#b8a878' }).setDepth(1001);
+      const sk = this.add.text(x, y + 62, '', { fontFamily: 'monospace', fontSize: '10px', color: '#c8b060' }).setDepth(1001);
+      this.hudRows.push({ name, portrait, hpBar, mpBar, hpText, sk, skReady: true });
     });
     this.statusText = this.add.text(12, 492, '', {
       fontFamily: 'monospace', fontSize: '12px', color: '#ffd75e',
@@ -1572,6 +1957,7 @@ class WorldScene extends Phaser.Scene {
       r.mpBar.scaleX = h.maxMp ? h.mp / h.maxMp : 0;
       r.hpText.setText(`HP ${h.hp}/${h.maxHp}  MP ${h.mp}/${h.maxMp}`);
       r.sk.setText(`[${i + 1}] ${SPELLS[h.quick].name} ${SPELLS[h.quick].cost}mp`);
+      if (r.portrait) r.portrait.setTint(h.hp <= 0 ? 0x555566 : 0xffffff);
     });
     const foes = this.entities ? this.entities.filter(e => e.kind === 'enemy').length : 0;
     this.statusText.setText(`Gold: ${GameData.gold}   Foes left: ${foes}` +
@@ -1618,6 +2004,8 @@ class WorldScene extends Phaser.Scene {
       mal.spells.push('fly');
       mal.quick = 'fly';
     }
+    const bi = GameData.inventory.indexOf('lostblade');
+    if (bi >= 0) GameData.inventory[bi] = null; // handed to Bram
     const notes = this.grantXP(60);
     this.toast('Quest complete! Malwick learns FLY — cast with 4, then R/X to rise and dive' +
       (notes.length ? ' — ' + notes.join(' ') : ''));
