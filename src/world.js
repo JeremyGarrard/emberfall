@@ -1,0 +1,1632 @@
+// BootScene: draws all art onto offscreen 32x32 canvases (walls + billboards).
+// WorldScene: first-person exploration with REAL-TIME combat — crosshair
+//   targeting, party attack volleys, hero skills on hotkeys, monsters that
+//   chase and strike back — plus villagers, chests, fountain, minimap, HUD.
+
+// floors (walk on / see across) vs walls (block rays; heights in raycast.js)
+const T_GRASS = 0, T_DIRT = 1, T_COBBLE = 2, T_WATER = 3, T_WOOD = 4;
+const T_ROCK = 5, T_FENCE = 6, T_TIMBER = 7, T_PLANK = 8, T_STONE = 9;
+const T_DOOR = 10, T_TIMBER_WIN = 11, T_STONE_WIN = 12, T_PLANK_WIN = 13;
+const T_SIGN_TAVERN = 14, T_SIGN_SMITH = 15, T_SIGN_TRADE = 16, T_BANNER = 17, T_CHIMNEY = 18;
+const MAP_W = 96, MAP_H = 72;
+const START = { x: 10.5, y: 35.5 }; // the village green
+
+// Emberfall village, hand-authored (Harmondale-flavored: walled village, one
+// gate facing the wilderness). Stamped onto the map at VILLAGE.x1/y1.
+//   F palisade   T timber wall (town hall / tavern)   S stone wall (smithy)
+//   B plank wall (trading post)   D door (opens as you approach)
+//   n/m/o windows (timber / stone-forgeglow / plank-shuttered)
+//   a/b/c hanging signs (tavern mug / smith anvil / trader coins)
+//   h heraldic banner   C chimney   = wood floor   U fountain   W well
+//   L lamppost   G gate (opening)   : cobbles   , dirt road   . grass
+const VILLAGE_LAYOUT = [
+  'FFFFFFFFFFFFFFF',
+  'F.............F',
+  'F.TTTTT.SSSCS.F',
+  'F.n===T.S===m.F',
+  'F.T===T.S===S.F',
+  'F.ThDhT.SmDbS.F',
+  'F......L......F',
+  'F.::U:::::W:L.F',
+  'F,,,,,,,,,,,,,G',
+  'F.VaDnV..BcDoBF',
+  'F.V===V..B===BF',
+  'F.V===V..B===BF',
+  'F.VVVVV..BBBBBF',
+  'FFFFFFFFFFFFFFF',
+];
+const VILLAGE = { x1: 4, y1: 28, x2: 4 + 14, y2: 28 + 13 };
+
+// building footprints (layout-relative, inclusive) — walls come from the tile
+// stamp; these rects give each building its gabled roof
+const BUILDINGS = [
+  { x1: 2, y1: 2, x2: 6, y2: 5, color: 0x7a3a30 },   // town hall
+  { x1: 8, y1: 2, x2: 12, y2: 5, color: 0x4e545e },  // smithy (slate)
+  { x1: 2, y1: 9, x2: 6, y2: 12, color: 0x8a7434 },  // tavern (thatch)
+  { x1: 9, y1: 9, x2: 13, y2: 12, color: 0x7a3a30 }, // trading post
+];
+
+// billboard proportions: bigger vDiv = smaller sprite (bottom stays on the floor)
+const SPRITE_META = {
+  slime: { vDiv: 2.0 }, goblin: { vDiv: 1.45 }, wolf: { vDiv: 1.55 },
+  chest: { vDiv: 2.3 }, fountain: { vDiv: 1.12 }, well: { vDiv: 1.5 }, lamp: { vDiv: 1.05 },
+  tree: { vDiv: 0.85 }, pine: { vDiv: 0.8 }, sword: { vDiv: 1.9 },
+  anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
+  elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
+  innkeep: { vDiv: 1.35 },
+};
+
+function makeArt(key, draw, size = 32) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const g = c.getContext('2d');
+  draw(g);
+  ART[key] = c;
+  return c;
+}
+
+class BootScene extends Phaser.Scene {
+  constructor() { super('Boot'); }
+
+  create() {
+    const ell = (g, x, y, rx, ry, color) => {
+      g.fillStyle = color; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    };
+    const tri = (g, pts, color) => {
+      g.fillStyle = color; g.beginPath(); g.moveTo(pts[0], pts[1]);
+      g.lineTo(pts[2], pts[3]); g.lineTo(pts[4], pts[5]); g.closePath(); g.fill();
+    };
+
+    // deterministic scatter for organic texture detail
+    let seed = 7;
+    const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+
+    // -- floor textures, 64px (sampled per-pixel by the ground caster) --
+    makeArt('grassfloor', g => {
+      g.fillStyle = '#4a8a42'; g.fillRect(0, 0, 64, 64);
+      const tones = ['#417c3a', '#559a4a', '#4f8f46', '#43823c'];
+      for (let i = 0; i < 90; i++) {
+        g.fillStyle = tones[(rnd() * tones.length) | 0];
+        g.fillRect(rnd() * 61, rnd() * 61, 2 + rnd() * 3, 2 + rnd() * 3);
+      }
+      for (let i = 0; i < 45; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#5fa852' : '#387534';
+        g.fillRect(rnd() * 63, rnd() * 59, 1, 2 + rnd() * 3);
+      }
+    }, 64);
+    makeArt('dirtfloor', g => {
+      g.fillStyle = '#7a5c34'; g.fillRect(0, 0, 64, 64);
+      const tones = ['#6a4e2a', '#8a6a3e', '#74562e', '#816036'];
+      for (let i = 0; i < 70; i++) {
+        g.fillStyle = tones[(rnd() * tones.length) | 0];
+        g.fillRect(rnd() * 58, rnd() * 59, 3 + rnd() * 6, 2 + rnd() * 4);
+      }
+      for (let i = 0; i < 26; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#95805c' : '#5e452a';
+        g.fillRect(rnd() * 61, rnd() * 62, 1 + rnd() * 2, 1 + rnd());
+      }
+    }, 64);
+    makeArt('cobblefloor', g => {
+      g.fillStyle = '#4e525a'; g.fillRect(0, 0, 64, 64);
+      const grays = ['#8a8f98', '#82878f', '#8f949c', '#7d828a', '#878c94'];
+      for (let ry = 0; ry < 4; ry++) {
+        const offX = (ry % 2) * 8;
+        for (let cx = -1; cx < 5; cx++) {
+          const x = cx * 16 + offX, y = ry * 16;
+          g.fillStyle = grays[(rnd() * grays.length) | 0];
+          g.fillRect(x + 1, y + 1, 14, 14);
+          g.fillStyle = 'rgba(255,255,255,0.13)'; g.fillRect(x + 1, y + 1, 14, 2);
+          g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x + 1, y + 13, 14, 2);
+        }
+      }
+    }, 64);
+    makeArt('waterfloor', g => {
+      g.fillStyle = '#2a5d8f'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#33679b';
+      for (let y = 2; y < 64; y += 8) g.fillRect(0, y, 64, 3);
+      for (let i = 0; i < 22; i++) {
+        g.fillStyle = rnd() < 0.6 ? '#4d82b8' : '#3a6fa3';
+        g.fillRect(rnd() * 48, rnd() * 62, 6 + rnd() * 10, 1);
+      }
+      g.fillStyle = '#9ac8e8';
+      for (let i = 0; i < 12; i++) g.fillRect(rnd() * 60, rnd() * 62, 2, 1);
+    }, 64);
+    makeArt('woodfloor', g => {
+      for (let b = 0; b < 8; b++) {
+        const y = b * 8;
+        g.fillStyle = b % 2 ? '#9a7248' : '#8f6a42';
+        g.fillRect(0, y, 64, 8);
+        g.fillStyle = '#6b4a2e'; g.fillRect(0, y + 7, 64, 1);
+        for (let i = 0; i < 4; i++) {
+          g.fillStyle = rnd() < 0.5 ? '#82603c' : '#a87f52';
+          g.fillRect(rnd() * 44, y + 1 + rnd() * 5, 6 + rnd() * 14, 1);
+        }
+        g.fillStyle = '#5e452a'; g.fillRect((b * 23) % 56 + 2, y + 3, 2, 2);
+      }
+    }, 64);
+    [[T_GRASS, 'grassfloor'], [T_DIRT, 'dirtfloor'], [T_COBBLE, 'cobblefloor'], [T_WATER, 'waterfloor'], [T_WOOD, 'woodfloor']]
+      .forEach(([id, key]) => {
+        const c = ART[key];
+        FLOOR_PIX[id] = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      });
+
+    // -- day sky strip (panned by view angle; sun sits at one heading) --
+    {
+      const sky = document.createElement('canvas');
+      sky.width = 2048; sky.height = 256;
+      const sg = sky.getContext('2d');
+      const grad = sg.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, '#5a90d8');
+      grad.addColorStop(0.75, '#a8c8ec');
+      grad.addColorStop(1, '#c6d8ec');
+      sg.fillStyle = grad; sg.fillRect(0, 0, 2048, 256);
+      sg.fillStyle = 'rgba(255,240,180,0.35)';
+      sg.beginPath(); sg.arc(600, 72, 56, 0, Math.PI * 2); sg.fill();
+      sg.fillStyle = '#fff2c8';
+      sg.beginPath(); sg.arc(600, 72, 28, 0, Math.PI * 2); sg.fill();
+      const cloud = (x, y, s, a) => {
+        sg.fillStyle = `rgba(255,255,255,${a})`;
+        sg.beginPath(); sg.ellipse(x, y, 52 * s, 18 * s, 0, 0, Math.PI * 2); sg.fill();
+        sg.beginPath(); sg.ellipse(x - 30 * s, y + 6 * s, 32 * s, 14 * s, 0, 0, Math.PI * 2); sg.fill();
+        sg.beginPath(); sg.ellipse(x + 34 * s, y + 8 * s, 36 * s, 14 * s, 0, 0, Math.PI * 2); sg.fill();
+      };
+      cloud(260, 88, 1, 0.9); cloud(940, 60, 1.3, 0.85); cloud(1380, 112, 0.8, 0.8);
+      cloud(1760, 76, 1.1, 0.9); cloud(480, 152, 0.6, 0.7); cloud(1180, 160, 0.7, 0.75);
+      SKY = sky;
+    }
+
+    // -- wall textures, 64px (painters are shared so windows/signs can build on them) --
+    const paintStone = g => {
+      g.fillStyle = '#3a3d44'; g.fillRect(0, 0, 64, 64);
+      const tones = ['#565a63', '#5e626b', '#525660', '#5a5e67'];
+      for (let ry = 0; ry < 4; ry++) {
+        const offX = (ry % 2) * 16;
+        for (let cx = -1; cx < 3; cx++) {
+          const x = cx * 32 + offX, y = ry * 16;
+          g.fillStyle = tones[(rnd() * tones.length) | 0];
+          g.fillRect(x + 1, y + 1, 30, 14);
+          g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x + 1, y + 1, 30, 2);
+          g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x + 1, y + 13, 30, 2);
+        }
+      }
+      for (let i = 0; i < 14; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#6a6e78' : '#484c55';
+        g.fillRect(rnd() * 58, rnd() * 58, 2 + rnd() * 3, 1 + rnd() * 2);
+      }
+    };
+    makeArt('rockwall', paintStone, 64);
+    makeArt('rockwall2', paintStone, 64); // fresh scatter = different stones
+    // palisade: rough vertical logs
+    makeArt('fencewall', g => {
+      for (let i = 0; i < 8; i++) {
+        const x = i * 8;
+        g.fillStyle = i % 2 ? '#8a6238' : '#7f5a33';
+        g.fillRect(x, 0, 8, 64);
+        g.fillStyle = '#96703f'; g.fillRect(x, 0, 2, 64);
+        g.fillStyle = '#5a3f20'; g.fillRect(x + 6, 0, 1, 64);
+        g.fillStyle = '#4a3418'; g.fillRect(x + 7, 0, 1, 64);
+      }
+      for (let i = 0; i < 22; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#a07a48' : '#6a4c26';
+        g.fillRect(2 + rnd() * 60, rnd() * 58, 1, 2 + rnd() * 4);
+      }
+      g.fillStyle = '#4a3418'; g.fillRect(0, 9, 64, 4); g.fillRect(0, 50, 64, 4); // cross-braces
+      g.fillStyle = '#6a4c26'; g.fillRect(0, 9, 64, 1); g.fillRect(0, 50, 64, 1);
+    }, 64);
+    // timber-frame: cream plaster with dark beams (town hall, tavern)
+    const paintPlaster = g => {
+      g.fillStyle = '#d8cfb8'; g.fillRect(0, 0, 64, 64);
+      for (let i = 0; i < 40; i++) {
+        g.fillStyle = rnd() < 0.5 ? '#cfc4a8' : '#e0d8c2';
+        g.fillRect(rnd() * 56, rnd() * 56, 3 + rnd() * 5, 2 + rnd() * 4);
+      }
+      g.fillStyle = '#5a4028';
+      g.fillRect(0, 0, 64, 5); g.fillRect(0, 59, 64, 5);   // top/bottom beams
+      g.fillRect(0, 0, 5, 64); g.fillRect(59, 0, 5, 64);   // side beams
+      g.fillRect(0, 29, 64, 4);                             // mid beam
+    };
+    const paintTimber = g => {
+      paintPlaster(g);
+      g.strokeStyle = '#5a4028'; g.lineWidth = 5;
+      g.beginPath(); g.moveTo(4, 33); g.lineTo(60, 60); g.moveTo(60, 33); g.lineTo(4, 60); g.stroke();
+      g.fillStyle = '#3a2a18';
+      [[2, 2], [60, 2], [2, 60], [60, 60], [31, 30]].forEach(([x, y]) => g.fillRect(x, y, 2, 2));
+    };
+    makeArt('timberwall', paintTimber, 64);
+    makeArt('timberwall2', g => { // vertical-stud variant to break repetition
+      paintPlaster(g);
+      g.fillStyle = '#5a4028'; g.fillRect(20, 29, 5, 35); g.fillRect(39, 29, 5, 35);
+      g.fillStyle = '#3a2a18';
+      [[2, 2], [60, 2], [2, 60], [60, 60]].forEach(([x, y]) => g.fillRect(x, y, 2, 2));
+    }, 64);
+    // horizontal planks (trading post)
+    const paintPlank = g => {
+      for (let b = 0; b < 6; b++) {
+        const y = b * 11;
+        g.fillStyle = b % 2 ? '#8a6238' : '#845d34';
+        g.fillRect(0, y, 64, 11);
+        g.fillStyle = '#9a7248'; g.fillRect(0, y, 64, 1);
+        g.fillStyle = '#5a3f20'; g.fillRect(0, y + 9, 64, 2);
+        for (let i = 0; i < 5; i++) {
+          g.fillStyle = rnd() < 0.5 ? '#79552c' : '#956e3f';
+          g.fillRect(rnd() * 40, y + 2 + rnd() * 6, 8 + rnd() * 16, 1);
+        }
+      }
+      g.fillStyle = '#4a3418';
+      for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(2 + rnd() * 60, 2 + rnd() * 60, 1.5, 0, Math.PI * 2); g.fill(); }
+    };
+    makeArt('plankwall', paintPlank, 64);
+
+    // oak door in a stone jamb (opens as you approach)
+    makeArt('doorwall', g => {
+      g.fillStyle = '#6a6e78'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#565a63'; g.fillRect(0, 0, 64, 4); g.fillRect(0, 0, 4, 64); g.fillRect(60, 0, 4, 64);
+      g.fillStyle = '#6b4526'; g.fillRect(6, 6, 52, 58);
+      g.fillStyle = '#4a2f16';
+      for (let x = 14; x < 58; x += 9) g.fillRect(x, 6, 2, 58);
+      g.fillStyle = '#2a2d33'; g.fillRect(6, 16, 52, 4); g.fillRect(6, 42, 52, 4);
+      g.fillStyle = '#3a3d44';
+      [[10, 17], [50, 17], [10, 43], [50, 43]].forEach(([x, y]) => g.fillRect(x, y, 3, 2));
+      g.fillStyle = '#d9a520'; g.beginPath(); g.arc(48, 32, 3, 0, Math.PI * 2); g.fill();
+    }, 64);
+
+    // windows
+    makeArt('timberwin', g => {
+      paintTimber(g);
+      g.fillStyle = '#5a4028'; g.fillRect(18, 6, 28, 26);
+      g.fillStyle = '#3a4c66'; g.fillRect(22, 10, 20, 18);
+      g.fillStyle = '#7a94b8'; g.fillRect(24, 11, 5, 16);
+      g.fillStyle = '#5a4028'; g.fillRect(31, 10, 2, 18); g.fillRect(22, 18, 20, 2);
+      g.fillStyle = '#6b4a2e'; g.fillRect(16, 32, 32, 4);
+    }, 64);
+    makeArt('stonewin', g => { // the forge glows through the smithy window
+      paintStone(g);
+      g.fillStyle = '#3a3d44'; g.fillRect(18, 8, 28, 28);
+      g.fillStyle = '#c8622a'; g.fillRect(21, 11, 22, 22);
+      g.fillStyle = '#f0a04a'; g.fillRect(24, 18, 10, 12);
+      g.fillStyle = '#2a2d33'; g.fillRect(21, 11, 22, 3);
+      g.fillStyle = '#1a1d23'; g.fillRect(27, 11, 3, 22); g.fillRect(35, 11, 3, 22);
+    }, 64);
+    makeArt('plankwin', g => { // shuttered
+      paintPlank(g);
+      g.fillStyle = '#4a3418'; g.fillRect(16, 10, 32, 26);
+      g.fillStyle = '#6b4526'; g.fillRect(18, 12, 13, 22); g.fillRect(33, 12, 13, 22);
+      g.fillStyle = '#4a2f16'; g.fillRect(31, 12, 2, 22);
+      g.fillStyle = '#3a3d44';
+      g.fillRect(19, 16, 11, 2); g.fillRect(34, 16, 11, 2);
+      g.fillRect(19, 28, 11, 2); g.fillRect(34, 28, 11, 2);
+    }, 64);
+
+    // hanging shop signs
+    const paintSign = (g, base, icon) => {
+      base(g);
+      g.fillStyle = '#2a2d33'; g.fillRect(30, 4, 4, 8); g.fillRect(20, 10, 24, 3);
+      g.fillStyle = '#8a6238'; g.fillRect(20, 13, 24, 22);
+      g.strokeStyle = '#4a3418'; g.lineWidth = 2; g.strokeRect(21, 14, 22, 20);
+      icon(g);
+    };
+    makeArt('signtavern', g => paintSign(g, paintTimber, () => {
+      g.fillStyle = '#d9a520'; g.fillRect(26, 20, 10, 11);
+      g.fillStyle = '#f0e6c8'; g.fillRect(25, 17, 12, 4);
+      g.fillStyle = '#d9a520'; g.fillRect(37, 22, 3, 6);
+    }), 64);
+    makeArt('signsmith', g => paintSign(g, paintStone, () => {
+      g.fillStyle = '#2a2d33';
+      g.fillRect(24, 21, 16, 4); g.fillRect(39, 21, 3, 3);
+      g.fillRect(28, 25, 8, 3); g.fillRect(26, 28, 12, 3);
+    }), 64);
+    makeArt('signtrade', g => paintSign(g, paintPlank, () => {
+      g.fillStyle = '#d9a520';
+      g.beginPath(); g.arc(28, 23, 5, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(35, 28, 5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#f0d060'; g.fillRect(26, 21, 2, 2); g.fillRect(33, 26, 2, 2);
+    }), 64);
+
+    // heraldic banner (town hall)
+    makeArt('bannerwall', g => {
+      paintTimber(g);
+      g.fillStyle = '#2a2d33'; g.fillRect(18, 4, 28, 3);
+      g.fillStyle = '#8a2a2a'; g.fillRect(22, 7, 20, 42);
+      g.fillStyle = '#d9a520'; g.fillRect(22, 7, 20, 3); g.fillRect(22, 46, 20, 3);
+      g.beginPath(); g.moveTo(32, 16); g.quadraticCurveTo(39, 27, 32, 36); g.quadraticCurveTo(25, 27, 32, 16); g.fill();
+      g.fillStyle = '#8a2a2a'; g.beginPath(); g.arc(32, 28, 3, 0, Math.PI * 2); g.fill();
+    }, 64);
+    WALL_ART[T_ROCK] = ART.rockwall;
+    WALL_ART[T_FENCE] = ART.fencewall;
+    WALL_ART[T_TIMBER] = ART.timberwall;
+    WALL_ART[T_PLANK] = ART.plankwall;
+    WALL_ART[T_STONE] = ART.rockwall;
+    WALL_ART[T_DOOR] = ART.doorwall;
+    WALL_ART[T_TIMBER_WIN] = ART.timberwin;
+    WALL_ART[T_STONE_WIN] = ART.stonewin;
+    WALL_ART[T_PLANK_WIN] = ART.plankwin;
+    WALL_ART[T_SIGN_TAVERN] = ART.signtavern;
+    WALL_ART[T_SIGN_SMITH] = ART.signsmith;
+    WALL_ART[T_SIGN_TRADE] = ART.signtrade;
+    // grassy hillsides (impassable rolling terrain)
+    const paintHill = g => {
+      g.fillStyle = '#4a7a3a'; g.fillRect(0, 0, 64, 64);
+      const tones = ['#417036', '#528544', '#457a3c', '#3c6a32'];
+      for (let i = 0; i < 50; i++) {
+        g.fillStyle = tones[(rnd() * tones.length) | 0];
+        g.fillRect(rnd() * 58, rnd() * 60, 3 + rnd() * 5, 2 + rnd() * 3);
+      }
+      g.fillStyle = '#6a6e78';
+      for (let i = 0; i < 8; i++) g.fillRect(rnd() * 56, 20 + rnd() * 40, 3 + rnd() * 4, 2 + rnd() * 3);
+      g.fillStyle = '#5fa852'; g.fillRect(0, 0, 64, 3); // sunlit crest
+    };
+    makeArt('hillwall', paintHill, 64);
+    makeArt('hillwall2', paintHill, 64);
+
+    WALL_ART[T_BANNER] = ART.bannerwall;
+    WALL_ART[T_CHIMNEY] = ART.rockwall;
+    WALL_ART_ALT[T_TIMBER] = ART.timberwall2;
+    WALL_ART_ALT[T_ROCK] = ART.rockwall2;
+    WALL_ART_ALT[T_STONE] = ART.rockwall2;
+
+    // -- monsters & props --
+    makeArt('slime', g => {
+      ell(g, 16, 22, 11, 8, '#35b06a');
+      ell(g, 13, 18, 4, 3, '#57d489');
+      ell(g, 12, 21, 2, 2.4, '#143d24');
+      ell(g, 20, 21, 2, 2.4, '#143d24');
+    });
+    makeArt('goblin', g => {
+      g.fillStyle = '#5f8f2f'; g.fillRect(10, 15, 12, 13);
+      g.fillStyle = '#4a731f'; g.fillRect(10, 24, 12, 4);
+      ell(g, 16, 10, 7, 7, '#6da036');
+      tri(g, [6, 10, 10, 5, 10, 13], '#6da036');
+      tri(g, [26, 10, 22, 5, 22, 13], '#6da036');
+      ell(g, 13, 9, 1.6, 1.6, '#d94040');
+      ell(g, 19, 9, 1.6, 1.6, '#d94040');
+      g.fillStyle = '#e8e0c8'; g.fillRect(13, 14, 2, 2); g.fillRect(17, 14, 2, 2);
+    });
+    makeArt('wolf', g => {
+      ell(g, 14, 22, 11, 6, '#6f7480');
+      ell(g, 24, 17, 5.5, 5, '#7a8090');
+      tri(g, [21, 10, 23, 16, 28, 12], '#6f7480');
+      tri(g, [2, 18, 6, 23, 7, 16], '#6f7480');
+      g.fillStyle = '#4d515c'; g.fillRect(8, 26, 3, 6); g.fillRect(18, 26, 3, 6);
+      ell(g, 26, 16, 1.5, 1.5, '#d94040');
+    });
+    makeArt('chest', g => {
+      g.fillStyle = '#7a4a1e'; g.fillRect(4, 15, 24, 13);
+      g.fillStyle = '#9a6428'; g.fillRect(4, 10, 24, 7);
+      g.strokeStyle = '#3a2410'; g.lineWidth = 1; g.strokeRect(4.5, 10.5, 23, 17);
+      g.fillStyle = '#d9a520'; g.fillRect(14, 10, 4, 18);
+      ell(g, 16, 18, 2.4, 2.4, '#ffd75e');
+    });
+    makeArt('fountain', g => {
+      ell(g, 16, 27, 13, 4.5, '#8a8f98');
+      ell(g, 16, 26, 10, 3.2, '#4a86c8');
+      g.fillStyle = '#8a8f98'; g.fillRect(14, 12, 4, 14);
+      ell(g, 16, 12, 7, 2.5, '#9aa0aa');
+      ell(g, 16, 11, 5, 1.8, '#6fb0e8');
+      g.fillStyle = '#bfe0ff'; g.fillRect(12, 14, 1, 6); g.fillRect(19, 15, 1, 5);
+    });
+
+    // wilderness tree (billboard — you can see between them now), 64px
+    makeArt('tree', g => {
+      g.fillStyle = '#5b3a1e'; g.fillRect(28, 42, 8, 22);
+      g.fillStyle = '#4a2f16'; g.fillRect(28, 42, 2, 22);
+      g.fillStyle = '#6b4526'; g.fillRect(34, 42, 2, 22);
+      ell(g, 32, 24, 22, 20, '#1e4d22');
+      ell(g, 20, 18, 12, 10, '#2a5f2d');
+      ell(g, 42, 16, 12, 10, '#2c6330');
+      ell(g, 32, 32, 16, 10, '#255828');
+      g.fillStyle = '#3a7a3a';
+      for (let i = 0; i < 12; i++) g.fillRect(12 + rnd() * 40, 6 + rnd() * 30, 2, 2);
+      g.fillStyle = '#173d1b';
+      for (let i = 0; i < 8; i++) g.fillRect(14 + rnd() * 36, 12 + rnd() * 26, 3, 2);
+    }, 64);
+
+    // furniture & dressing
+    makeArt('anvil', g => {
+      g.fillStyle = '#6b4526'; g.fillRect(11, 24, 10, 6);
+      g.fillStyle = '#3a3d44';
+      g.fillRect(8, 12, 16, 4); g.fillRect(22, 12, 5, 3);
+      g.fillRect(13, 16, 6, 5); g.fillRect(10, 21, 12, 3);
+      g.fillStyle = '#5a5e66'; g.fillRect(8, 12, 16, 1);
+    });
+    makeArt('barrel', g => {
+      ell(g, 16, 28, 9, 3, '#4a3418');
+      g.fillStyle = '#8a6238'; g.fillRect(7, 8, 18, 20);
+      ell(g, 16, 8, 9, 3, '#9a7248');
+      g.fillStyle = '#7a5530'; g.fillRect(10, 8, 2, 20); g.fillRect(20, 8, 2, 20);
+      g.fillStyle = '#3a3d44'; g.fillRect(7, 11, 18, 2); g.fillRect(7, 23, 18, 2);
+    });
+    makeArt('crate', g => {
+      g.fillStyle = '#8a6238'; g.fillRect(6, 10, 20, 20);
+      g.strokeStyle = '#4a3418'; g.lineWidth = 2;
+      g.strokeRect(7, 11, 18, 18);
+      g.beginPath(); g.moveTo(7, 11); g.lineTo(25, 29); g.moveTo(25, 11); g.lineTo(7, 29); g.stroke();
+    });
+    makeArt('smoke', g => {
+      g.globalAlpha = 0.55;
+      ell(g, 14, 24, 8, 6, '#b8bcc4');
+      ell(g, 20, 15, 9, 7, '#c8ccd4');
+      ell(g, 12, 8, 6, 5, '#d4d8de');
+      g.globalAlpha = 1;
+    });
+
+    // pine tree (forest variety)
+    makeArt('pine', g => {
+      g.fillStyle = '#5b3a1e'; g.fillRect(29, 50, 6, 14);
+      tri(g, [32, 2, 17, 24, 47, 24], '#1d4a24');
+      tri(g, [32, 13, 13, 40, 51, 40], '#225530');
+      tri(g, [32, 26, 9, 54, 55, 54], '#1e4d28');
+      g.fillStyle = '#2e6338';
+      for (let i = 0; i < 10; i++) g.fillRect(14 + rnd() * 36, 18 + rnd() * 32, 2, 2);
+    }, 64);
+
+    // Bram's masterwork blade, point-down in the earth
+    makeArt('sword', g => {
+      ell(g, 16, 4, 2.5, 2.5, '#d9a520');
+      g.fillStyle = '#6b4526'; g.fillRect(14, 6, 4, 7);
+      g.fillStyle = '#d9a520'; g.fillRect(9, 13, 14, 3);
+      g.fillStyle = '#c8ccd4'; g.fillRect(14, 16, 4, 14);
+      g.fillStyle = '#f0f2f6'; g.fillRect(14, 16, 2, 14);
+    });
+
+    // village props
+    makeArt('well', g => {
+      g.fillStyle = '#5a4028'; g.fillRect(6, 4, 2, 16); g.fillRect(24, 4, 2, 16); // posts
+      tri(g, [3, 6, 16, 0, 29, 6], '#7a5530');                                    // little roof
+      ell(g, 16, 24, 11, 6, '#8a8f98');                                           // stone ring
+      ell(g, 16, 23, 8, 4, '#2a3038');                                            // dark shaft
+      g.fillStyle = '#6a4a26'; g.fillRect(15, 6, 2, 12);                           // rope
+      g.fillStyle = '#7a5530'; g.fillRect(12, 16, 8, 5);                           // bucket
+    });
+    makeArt('lamp', g => {
+      g.fillStyle = '#3a3d44'; g.fillRect(14, 8, 4, 24);
+      g.fillStyle = '#2a2d33'; g.fillRect(11, 30, 10, 2);
+      g.fillStyle = '#ffd75e'; g.fillRect(12, 2, 8, 8);
+      g.fillStyle = '#fff2b8'; g.fillRect(14, 4, 4, 4);
+      g.fillStyle = '#3a3d44'; g.fillRect(11, 0, 10, 2); g.fillRect(11, 10, 10, 2);
+    });
+
+    // -- villagers --
+    makeArt('innkeep', g => {
+      g.fillStyle = '#7a4a3a'; g.fillRect(9, 14, 14, 16);   // dress
+      g.fillStyle = '#e8e4da'; g.fillRect(11, 18, 10, 12);  // apron
+      ell(g, 16, 10, 5.5, 5.5, '#e8c39e');
+      ell(g, 16, 5.5, 4, 3, '#a8763a');                     // hair bun
+      g.fillStyle = '#a8763a'; g.fillRect(10.5, 8, 3, 5); g.fillRect(18.5, 8, 3, 5);
+    });
+    makeArt('elder', g => {
+      g.fillStyle = '#7a7490'; g.fillRect(10, 14, 12, 16);
+      tri(g, [8, 30, 16, 12, 24, 30], '#7a7490');
+      ell(g, 16, 10, 5.5, 5.5, '#e8c39e');
+      ell(g, 16, 6.5, 5.5, 3, '#e8e4da');
+      g.fillStyle = '#d8d4ca'; g.fillRect(13, 13, 6, 6);
+      g.fillStyle = '#6a4a26'; g.fillRect(26, 6, 2, 24);
+      ell(g, 27, 5, 2.5, 2.5, '#3ecfb0');
+    });
+    makeArt('smith', g => {
+      g.fillStyle = '#4a3527'; g.fillRect(9, 14, 14, 16);
+      g.fillStyle = '#8a5a2a'; g.fillRect(11, 17, 10, 12);
+      ell(g, 16, 9.5, 6, 6, '#d8a878');
+      g.fillStyle = '#3a2a1a'; g.fillRect(11, 11, 10, 4); g.fillRect(12, 4, 8, 3);
+      g.fillStyle = '#6a4a26'; g.fillRect(4, 16, 2, 13);
+      g.fillStyle = '#9aa0aa'; g.fillRect(1, 13, 8, 4);
+    });
+    makeArt('child', g => {
+      g.fillStyle = '#b05a7a'; g.fillRect(11, 18, 10, 11);
+      tri(g, [9, 29, 16, 18, 23, 29], '#b05a7a');
+      ell(g, 16, 13.5, 5, 5, '#e8c39e');
+      ell(g, 16, 10.5, 5, 2.5, '#c87830');
+      ell(g, 10, 13, 2, 3, '#c87830');
+      ell(g, 22, 13, 2, 3, '#c87830');
+    });
+    makeArt('merchant', g => {
+      g.fillStyle = '#6a4a8a'; g.fillRect(10, 15, 12, 15);
+      ell(g, 16, 11, 5.5, 5.5, '#e8c39e');
+      ell(g, 16, 6.5, 8, 2.5, '#4a3527');
+      g.fillStyle = '#4a3527'; g.fillRect(12, 2, 8, 5);
+      ell(g, 25, 24, 3.5, 4, '#d9a520');
+    });
+
+    this.scene.start('World');
+  }
+}
+
+class WorldScene extends Phaser.Scene {
+  constructor() { super('World'); }
+
+  create() {
+    this.buildMap();
+    this.buildEntities();
+
+    // real-3D view: three.js canvas underneath, this Phaser canvas (transparent)
+    // draws every UI element on top
+    this.game.canvas.style.position = 'relative';
+    this.game.canvas.style.zIndex = '1';
+    R3D.init(document.getElementById('game'), {
+      map: this.map, mapW: MAP_W, mapH: MAP_H,
+      heights: this.heights,
+      terrainH: (x, y) => this.terrainH(x, y),
+      doors: this.doors,
+      buildings: BUILDINGS.map(b => ({
+        x1: VILLAGE.x1 + b.x1, y1: VILLAGE.y1 + b.y1,
+        x2: VILLAGE.x1 + b.x2, y2: VILLAGE.y1 + b.y2,
+        h: 1.25, color: b.color,
+      })),
+    });
+    R3D.syncSize(this.game.canvas);
+    this.scale.on('resize', () => R3D.syncSize(this.game.canvas));
+
+    this.hpBars = this.add.graphics().setDepth(950);
+    this.crosshair = this.add.text(480, 255, '+', {
+      fontFamily: 'monospace', fontSize: '26px', color: '#ffffff',
+      stroke: '#0a0c12', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(951);
+
+    this.px = START.x; this.py = START.y;
+    this.angle = 0; // radians; 0 = east
+    this.pitch = 0; // vertical look, in screen pixels of horizon shift
+    this.eyeZ = 0.5;      // camera height in wall units (0.5 = on foot)
+    this.flying = false;  // the Fly spell
+    this.landing = false;
+    this.flyCaster = -1;
+    this.flyDrainAt = 0;
+    this.dialogOpen = false;
+    this.nearVillager = null;
+    this.dead = false;
+    this.target = null;
+    this.hitFlashUntil = 0;
+    this.invulnUntil = 0;
+    this.fountainCd = 0;
+
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,Q,E,M,R,X,UP,DOWN,LEFT,RIGHT,SPACE,ONE,TWO,THREE,FOUR,PAGE_UP,PAGE_DOWN');
+    this.input.keyboard.on('keydown-M', () => { this.mmContainer.visible = !this.mmContainer.visible; });
+    this.input.keyboard.on('keydown-T', () => {
+      if (!this.dead && !this.dialogOpen && this.nearVillager) this.openDialogue(this.nearVillager);
+    });
+
+    // click: grab mouse-look if not locked, and swing at whatever's in your sights
+    this.input.on('pointerdown', () => {
+      if (this.dialogOpen || this.dead || this.sbOpen) return;
+      if (document.pointerLockElement !== this.game.canvas) this.game.canvas.requestPointerLock();
+      this.partyAttack(this.time.now);
+    });
+    this._mouseMove = ev => {
+      if (document.pointerLockElement === this.game.canvas && !this.dialogOpen && !this.dead) {
+        this.angle += ev.movementX * 0.0032;
+        this.pitch = clamp(this.pitch - ev.movementY * 0.0021, -0.9, 0.9); // radians now
+      }
+    };
+    document.addEventListener('mousemove', this._mouseMove);
+
+    // F = action, same as a mouse click (fullscreen lives on the browser's F11)
+    this.input.keyboard.on('keydown-F', () => this.partyAttack(this.time.now));
+
+    this.time.addEvent({ delay: 650, loop: true, callback: () => this.wanderEnemies() });
+
+    this.questText = this.add.text(12, 470, '', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#9ad8ff',
+      backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 6, y: 2 },
+    }).setDepth(1000);
+
+    this.buildMinimap();
+    this.buildHUD();
+    this.buildSpellbook();
+    this.input.keyboard.on('keydown-B', () => {
+      if (this.dialogOpen || this.dead) return;
+      if (this.sbOpen) this.closeSpellbook(); else this.openSpellbook();
+    });
+
+    this.compass = this.add.text(480, 8, '', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#d8c26a',
+      backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 8, y: 3 },
+    }).setOrigin(0.5, 0).setDepth(1000);
+
+    this.targetText = this.add.text(480, 36, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffb3a0',
+      backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 8, y: 3 },
+    }).setOrigin(0.5, 0).setDepth(1000).setAlpha(0);
+
+    this.dmgVignette = this.add.rectangle(0, 0, 960, 510, 0xaa1111)
+      .setOrigin(0).setDepth(900).setAlpha(0);
+
+    this.toastText = this.add.text(480, 466, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffe9a0',
+      backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 10, y: 5 },
+    }).setOrigin(0.5).setDepth(1001).setAlpha(0);
+
+    this.talkHint = this.add.text(480, 432, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#9ad8ff',
+      backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 10, y: 5 },
+    }).setOrigin(0.5).setDepth(1001).setAlpha(0);
+
+    this.toast('Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
+  }
+
+  // ---------- map & entities ----------
+
+  buildMap() {
+    this.map = [];
+    for (let y = 0; y < MAP_H; y++) this.map.push(new Array(MAP_W).fill(T_GRASS));
+
+    for (let x = 0; x < MAP_W; x++) { this.map[0][x] = T_ROCK; this.map[MAP_H - 1][x] = T_ROCK; }
+    for (let y = 0; y < MAP_H; y++) { this.map[y][0] = T_ROCK; this.map[y][MAP_W - 1] = T_ROCK; }
+
+    // (hills are real terrain now — see buildHeights)
+
+    // lakes: open water you can see (and shoot) across, but not cross
+    for (const [cx, cy, rx, ry] of [[70, 14, 8, 5], [26, 58, 6, 4], [80, 55, 7, 5]]) {
+      for (let y = 1; y < MAP_H - 1; y++) for (let x = 1; x < MAP_W - 1; x++) {
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        if (dx * dx + dy * dy <= 1) this.map[y][x] = T_WATER;
+      }
+    }
+
+    // the river: winds north-south through the middle of the vale
+    for (let y = 1; y < MAP_H - 1; y++) {
+      const cx = 48 + Math.round(Math.sin(y * 0.15) * 5);
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx;
+        if (x > 1 && x < MAP_W - 1) this.map[y][x] = T_WATER;
+      }
+    }
+
+    // stamp the authored village over whatever the wilderness generated
+    const CHAR_TILE = {
+      F: T_FENCE, T: T_TIMBER, V: T_TIMBER, S: T_STONE, B: T_PLANK,
+      D: T_DOOR, n: T_TIMBER_WIN, m: T_STONE_WIN, o: T_PLANK_WIN,
+      a: T_SIGN_TAVERN, b: T_SIGN_SMITH, c: T_SIGN_TRADE, h: T_BANNER, C: T_CHIMNEY,
+      ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
+    };
+    this.doors = [];
+    VILLAGE_LAYOUT.forEach((row, ry) => {
+      for (let rx = 0; rx < row.length; rx++) {
+        this.map[VILLAGE.y1 + ry][VILLAGE.x1 + rx] = CHAR_TILE[row[rx]] || T_GRASS;
+        if (row[rx] === 'D') this.doors.push({ x: VILLAGE.x1 + rx, y: VILLAGE.y1 + ry, open: false });
+      }
+    });
+
+    // the east road: a clear corridor from the gate deep into the vale,
+    // fording the river and winding through the hills
+    const roadY = VILLAGE.y1 + 8; // the gate row
+    for (let x = VILLAGE.x2 + 1; x <= 82 && x < MAP_W - 1; x++) {
+      for (let y = roadY - 1; y <= roadY + 1; y++) {
+        const t = this.map[y][x];
+        if (y === roadY) this.map[y][x] = T_DIRT;
+        else if (t !== T_GRASS && t !== T_COBBLE) this.map[y][x] = T_GRASS;
+      }
+    }
+
+    this.buildHeights();
+  }
+
+  // ---------- terrain (the actual hills) ----------
+
+  buildHeights() {
+    const W1 = MAP_W + 1, H1 = MAP_H + 1;
+    const h = [];
+    for (let y = 0; y < H1; y++) h.push(new Float32Array(W1));
+
+    // gaussian mounds are the hills; a rising rim walls in the vale
+    const mounds = [];
+    let tries = 0;
+    while (mounds.length < 26 && tries++ < 300) {
+      const mx = ri(6, MAP_W - 6), my = ri(5, MAP_H - 5);
+      if (this.inVillage(mx, my, 9)) continue;
+      mounds.push([mx, my, 3.5 + Math.random() * 5, 0.9 + Math.random() * 1.9]);
+    }
+    for (let y = 0; y < H1; y++) {
+      for (let x = 0; x < W1; x++) {
+        let v = 0;
+        for (const [mx, my, r, amp] of mounds) {
+          const d2 = ((x - mx) * (x - mx) + (y - my) * (y - my)) / (r * r);
+          if (d2 < 5) v += amp * Math.exp(-d2 * 1.5);
+        }
+        const eb = Math.min(x, y, MAP_W - x, MAP_H - y);
+        if (eb < 5) v += (5 - eb) * (5 - eb) * 0.30; // mountain rim
+        h[y][x] = v;
+      }
+    }
+
+    // the village sits on a leveled shelf; fade the flattening outward
+    for (let y = 0; y < H1; y++) {
+      for (let x = 0; x < W1; x++) {
+        const dx = Math.max(VILLAGE.x1 - x, 0, x - (VILLAGE.x2 + 1));
+        const dy = Math.max(VILLAGE.y1 - y, 0, y - (VILLAGE.y2 + 1));
+        const d = Math.hypot(dx, dy);
+        if (d < 5) h[y][x] *= d / 5;
+      }
+    }
+    // keep the east road a gentle valley route
+    const roadY = VILLAGE.y1 + 8;
+    for (let y = 0; y < H1; y++) {
+      for (let x = 0; x < W1; x++) {
+        if (x >= VILLAGE.x2 && x <= 84) {
+          const d = Math.abs(y - (roadY + 0.5));
+          if (d < 4) h[y][x] *= 0.25 + 0.75 * (d / 4);
+        }
+      }
+    }
+    // carve river and lake beds below water level
+    for (let y = 0; y < H1; y++) {
+      for (let x = 0; x < W1; x++) {
+        for (const [cx, cy] of [[x, y], [x - 1, y], [x, y - 1], [x - 1, y - 1]]) {
+          if (cx >= 0 && cy >= 0 && cx < MAP_W && cy < MAP_H && this.map[cy][cx] === T_WATER) {
+            h[y][x] = Math.min(h[y][x], -0.9);
+            break;
+          }
+        }
+      }
+    }
+    // two smoothing passes for the rolling look
+    for (let pass = 0; pass < 2; pass++) {
+      const s = [];
+      for (let y = 0; y < H1; y++) s.push(Float32Array.from(h[y]));
+      for (let y = 1; y < H1 - 1; y++) {
+        for (let x = 1; x < W1 - 1; x++) {
+          h[y][x] = (s[y][x] * 4 + s[y - 1][x] + s[y + 1][x] + s[y][x - 1] + s[y][x + 1]) / 8;
+        }
+      }
+    }
+    this.heights = h;
+  }
+
+  terrainH(x, y) {
+    const gx = clamp(x, 0, MAP_W - 0.001), gy = clamp(y, 0, MAP_H - 0.001);
+    const x0 = Math.floor(gx), y0 = Math.floor(gy);
+    const fx = gx - x0, fy = gy - y0;
+    const h = this.heights;
+    return h[y0][x0] * (1 - fx) * (1 - fy) + h[y0][x0 + 1] * fx * (1 - fy) +
+           h[y0 + 1][x0] * (1 - fx) * fy + h[y0 + 1][x0 + 1] * fx * fy;
+  }
+
+  slopeAt(x, y) {
+    const d = 0.45;
+    return Math.max(
+      Math.abs(this.terrainH(x + d, y) - this.terrainH(x - d, y)),
+      Math.abs(this.terrainH(x, y + d) - this.terrainH(x, y - d)));
+  }
+
+  inVillage(x, y, pad = 0) {
+    return x >= VILLAGE.x1 - pad && x <= VILLAGE.x2 + 1 + pad &&
+           y >= VILLAGE.y1 - pad && y <= VILLAGE.y2 + 1 + pad;
+  }
+
+  buildEntities() {
+    this.entities = [];
+    const add = (kind, type, gx, gy) => {
+      const e = {
+        kind, type, art: type, gx, gy,
+        x: gx + 0.5, y: gy + 0.5,
+        vDiv: SPRITE_META[type].vDiv,
+      };
+      if (kind === 'enemy') {
+        const t = ENEMY_TYPES[type];
+        Object.assign(e, {
+          hp: t.hp, maxHp: t.hp, atk: t.atk, def: t.def, xp: t.xp, gold: t.gold,
+          speed: t.speed, cd: t.cd, nextAtk: 0, aggro: false,
+        });
+      }
+      this.entities.push(e);
+      return e;
+    };
+
+    // forest regions — oak and pine woods with clearings, plus scattered loners
+    const treeOk = (x, y) =>
+      x >= 2 && y >= 2 && x < MAP_W - 2 && y < MAP_H - 2 &&
+      this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) && !this.entityAt(x, y);
+    for (let f = 0; f < 9; f++) {
+      const fx = ri(8, MAP_W - 9), fy = ri(6, MAP_H - 7);
+      const r = ri(4, 7), pineWood = Math.random() < 0.4;
+      const tries = Math.floor(r * r * 1.6);
+      for (let i = 0; i < tries; i++) {
+        const a = Math.random() * Math.PI * 2, rr = Math.random() * r;
+        const x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
+        if (!treeOk(x, y)) continue;
+        const main = Math.random() < 0.85;
+        add('tree', pineWood === main ? 'pine' : 'tree', x, y);
+      }
+    }
+    for (let i = 0; i < 70; i++) {
+      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
+      if (treeOk(x, y)) add('tree', Math.random() < 0.7 ? 'tree' : 'pine', x, y);
+    }
+
+    // furniture & street dressing (coordinates relative to the village stamp)
+    const vx = VILLAGE.x1, vy = VILLAGE.y1;
+    add('prop', 'anvil', vx + 9, vy + 3);
+    add('prop', 'barrel', vx + 3, vy + 10);
+    add('prop', 'crate', vx + 10, vy + 10);
+    add('prop', 'crate', vx + 12, vy + 10);
+    add('prop', 'barrel', vx + 1, vy + 7);
+    add('prop', 'crate', vx + 1, vy + 8);
+    const smoke = add('decor', 'smoke', vx + 11, vy + 2); // above the smithy chimney
+    smoke.zOff = 1.85;
+
+    // props straight from the village layout (single source of truth)
+    const CHAR_PROP = { U: 'fountain', W: 'well', L: 'lamp' };
+    VILLAGE_LAYOUT.forEach((row, ry) => {
+      for (let rx = 0; rx < row.length; rx++) {
+        const kind = CHAR_PROP[row[rx]];
+        if (kind === 'fountain') add('fountain', 'fountain', VILLAGE.x1 + rx, VILLAGE.y1 + ry);
+        else if (kind) add('prop', kind, VILLAGE.x1 + rx, VILLAGE.y1 + ry);
+      }
+    });
+
+    for (const v of VILLAGERS) {
+      const e = add('villager', v.art, vx + v.spot[0], vy + v.spot[1]);
+      e.name = v.name;
+      e.villager = v;
+      e.chat = [];
+    }
+
+    let placed = 0, guard = 0;
+    while (placed < 14 && guard++ < 2500) {
+      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
+      if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) &&
+          dist(x, y, START.x, START.y) > 14 && !this.entityAt(x, y)) {
+        add('chest', 'chest', x, y); placed++;
+      }
+    }
+
+    guard = 0;
+    let enemies = 0;
+    while (enemies < 40 && guard++ < 5000) {
+      const x = ri(2, MAP_W - 3), y = ri(2, MAP_H - 3);
+      if (this.map[y][x] !== T_GRASS || this.inVillage(x, y, 4) || this.entityAt(x, y)) continue;
+      const d = dist(x, y, START.x, START.y);
+      const nearVillage = d < 22;
+      if (enemies < 8 && !nearVillage) continue; // first few are guaranteed easy foes near the walls
+      add('enemy', nearVillage ? 'slime' : d < 52 ? 'goblin' : 'wolf', x, y);
+      enemies++;
+    }
+
+    // Bram's stolen blade: a goblin camp far east, across the river ford
+    let sx = 76, sy = VILLAGE.y1 + 8, swordGuard = 0;
+    while (swordGuard++ < 500 && (this.map[sy][sx] !== T_GRASS || this.entityAt(sx, sy))) {
+      sx = 70 + ri(0, 16); sy = 28 + ri(0, 18);
+    }
+    add('item', 'sword', sx, sy);
+    let guards = 0;
+    for (const [dx, dy] of [[2, 0], [-2, 1], [0, 2], [1, -2], [-1, -1], [2, 2]]) {
+      if (guards >= 3) break;
+      const gx2 = sx + dx, gy2 = sy + dy;
+      if (gx2 > 1 && gy2 > 1 && gx2 < MAP_W - 2 && gy2 < MAP_H - 2 &&
+          this.map[gy2][gx2] === T_GRASS && !this.entityAt(gx2, gy2)) {
+        add('enemy', 'goblin', gx2, gy2);
+        guards++;
+      }
+    }
+  }
+
+  entityAt(gx, gy) { return this.entities.find(e => e.gx === gx && e.gy === gy); }
+
+  walkableAt(gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= MAP_W || gy >= MAP_H) return false;
+    const t = this.map[gy][gx];
+    return t <= T_COBBLE || t === T_WOOD;
+  }
+
+  // ---------- movement & collision ----------
+
+  canStand(x, y) {
+    const r = 0.28;
+    if (!(this.walkableAt(Math.floor(x - r), Math.floor(y - r)) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y - r)) &&
+          this.walkableAt(Math.floor(x - r), Math.floor(y + r)) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y + r)))) return false;
+    if (this.slopeAt(x, y) > 0.85) return false; // too steep to climb
+    for (const e of this.entities) {
+      if ((e.kind === 'fountain' || e.kind === 'villager') && Math.hypot(e.x - x, e.y - y) < 0.55) return false;
+      if (e.kind === 'prop' && Math.hypot(e.x - x, e.y - y) < 0.45) return false;
+      if (e.kind === 'tree' && Math.hypot(e.x - x, e.y - y) < 0.38) return false;
+      if (e.kind === 'enemy' && Math.hypot(e.x - x, e.y - y) < 0.42) return false;
+    }
+    return true;
+  }
+
+  lineOfSight(x0, y0, x1, y1, h0, h1) {
+    const d = Math.hypot(x1 - x0, y1 - y0);
+    const steps = Math.ceil(d * 3);
+    if (h0 === undefined) h0 = this.terrainH(x0, y0) + 0.5;
+    if (h1 === undefined) h1 = this.terrainH(x1, y1) + 0.5;
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const sx = x0 + (x1 - x0) * t, sy = y0 + (y1 - y0) * t;
+      const cx = Math.floor(sx), cy = Math.floor(sy);
+      if (cx < 0 || cy < 0 || cx >= MAP_W || cy >= MAP_H) return false;
+      if (this.map[cy][cx] >= 5) return false;                              // walls block sight
+      if (this.terrainH(sx, sy) + 0.35 > h0 + (h1 - h0) * t) return false;  // so do hills
+    }
+    return true;
+  }
+
+  enemyCanStand(x, y, self) {
+    const r = 0.3;
+    if (!(this.walkableAt(Math.floor(x - r), Math.floor(y - r)) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y - r)) &&
+          this.walkableAt(Math.floor(x - r), Math.floor(y + r)) &&
+          this.walkableAt(Math.floor(x + r), Math.floor(y + r)))) return false;
+    if (this.slopeAt(x, y) > 0.85) return false;
+    if (this.inVillage(x, y, 0.4)) return false; // monsters never enter the village
+    for (const e of this.entities) {
+      if (e === self) continue;
+      if ((e.kind === 'fountain' || e.kind === 'villager' || e.kind === 'prop') && Math.hypot(e.x - x, e.y - y) < 0.5) return false;
+      if (e.kind === 'tree' && Math.hypot(e.x - x, e.y - y) < 0.4) return false;
+      if (e.kind === 'enemy' && Math.hypot(e.x - x, e.y - y) < 0.45) return false;
+    }
+    return true;
+  }
+
+  wallHeightAt(gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= MAP_W || gy >= MAP_H) return 99;
+    const t = this.map[gy][gx];
+    return t >= 5 ? (WALL_HEIGHT[t] || 1) : 0;
+  }
+
+  canFly(x, y) {
+    // the winds die at the mountain rim — no leaving the vale
+    if (x < 2.5 || y < 2.5 || x > MAP_W - 2.5 || y > MAP_H - 2.5) return false;
+    const feetAbs = (this.camZ || this.terrainH(this.px, this.py) + this.eyeZ) - 0.45;
+    const r = 0.3;
+    for (const [cx, cy] of [[x - r, y - r], [x + r, y - r], [x - r, y + r], [x + r, y + r]]) {
+      const wt = this.wallHeightAt(Math.floor(cx), Math.floor(cy));
+      if (wt > 0 && wt < 90 && this.terrainH(cx, cy) + wt > feetAbs) return false; // building in the way
+      if (this.terrainH(cx, cy) > feetAbs) return false;                           // hillside in the way
+    }
+    return true;
+  }
+
+  minEyeAt(x, y) {
+    let m = 0.5;
+    const r = 0.3;
+    for (const [cx, cy] of [[x - r, y - r], [x + r, y - r], [x - r, y + r], [x + r, y + r]]) {
+      const gx = Math.floor(cx), gy = Math.floor(cy);
+      if (gx < 0 || gy < 0 || gx >= MAP_W || gy >= MAP_H) { m = Math.max(m, 2.1); continue; }
+      const t = this.map[gy][gx];
+      if (t >= 5) m = Math.max(m, (WALL_HEIGHT[t] || 1) + 0.5);
+      else if (t === T_WATER) m = Math.max(m, 0.85); // you may hover over water, never land on it
+    }
+    return m;
+  }
+
+  wanderEnemies() {
+    if (this.dialogOpen || this.dead) return;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const e of this.entities) {
+      if (e.kind !== 'enemy' || e.aggro) continue;
+      if (Math.random() < 0.55) continue;
+      const choices = Phaser.Utils.Array.Shuffle(dirs.slice());
+      for (const [dx, dy] of choices) {
+        const nx = e.gx + dx, ny = e.gy + dy;
+        if (!this.walkableAt(nx, ny)) continue;
+        if (this.entityAt(nx, ny)) continue;
+        if (this.inVillage(nx + 0.5, ny + 0.5, 1)) continue;
+        e.gx = nx; e.gy = ny;
+        break;
+      }
+    }
+  }
+
+  // ---------- main loop ----------
+
+  update(time, delta) {
+    const dt = Math.min(delta, 100) / 1000;
+    const live = !this.dialogOpen && !this.dead;
+
+    if (live) {
+      const k = this.keys;
+      if (k.LEFT.isDown) this.angle -= 2.6 * dt;
+      if (k.RIGHT.isDown) this.angle += 2.6 * dt;
+    }
+    const dirX = Math.cos(this.angle), dirY = Math.sin(this.angle);
+
+    if (live) {
+      const k = this.keys;
+      let mx = 0, my = 0;
+      if (k.W.isDown || k.UP.isDown) { mx += dirX; my += dirY; }
+      if (k.S.isDown || k.DOWN.isDown) { mx -= dirX; my -= dirY; }
+      if (k.A.isDown || k.Q.isDown) { mx += dirY; my -= dirX; }
+      if (k.D.isDown || k.E.isDown) { mx -= dirY; my += dirX; }
+      if (mx || my) {
+        const len = Math.hypot(mx, my);
+        const speed = this.flying ? 5.5 : 3.1; // the wind carries you swiftly
+        const nx = this.px + (mx / len) * speed * dt;
+        const ny = this.py + (my / len) * speed * dt;
+        if (this.flying) {
+          if (this.canFly(nx, this.py)) this.px = nx;
+          if (this.canFly(this.px, ny)) this.py = ny;
+        } else {
+          if (this.canStand(nx, this.py)) this.px = nx;
+          if (this.canStand(this.px, ny)) this.py = ny;
+        }
+      }
+
+      // flight: R/X (or PgUp/PgDn, as in MM7) to rise and dive
+      if (this.flying) {
+        const rise = (k.R.isDown || k.PAGE_UP.isDown) ? 1 : 0;
+        const dive = (k.X.isDown || k.PAGE_DOWN.isDown) ? 1 : 0;
+        let target = this.eyeZ + (rise - dive) * 1.3 * dt;
+        if (this.landing) target = this.eyeZ - 1.3 * dt;
+        const minZ = this.minEyeAt(this.px, this.py);
+        this.eyeZ = clamp(target, Math.max(0.5, minZ), 2.1);
+        if (this.landing && minZ > 0.5 && this.eyeZ <= minZ + 0.02) {
+          this.landing = false;
+          this.toast('No solid ground below!');
+        }
+        if ((this.landing || dive) && this.eyeZ <= 0.505 && minZ <= 0.5) {
+          if (this.slopeAt(this.px, this.py) < 0.9) {
+            this.flying = false; this.landing = false; this.eyeZ = 0.5;
+            this.toast('You touch down.');
+            this.refreshHUD();
+          } else if (this.landing) {
+            this.landing = false;
+            this.toast('Too steep to land here!');
+          }
+        }
+        if (this.flying && time > this.flyDrainAt) {
+          this.flyDrainAt = time + 4000;
+          const c = GameData.party[this.flyCaster];
+          if (!c || c.hp <= 0 || c.mp <= 0) {
+            this.landing = true;
+            this.toast('The spell falters — you sink toward the ground!');
+          } else {
+            c.mp -= 1;
+            this.refreshHUD();
+          }
+        }
+      } else if (this.eyeZ > 0.5) {
+        this.eyeZ = Math.max(0.5, this.eyeZ - 1.5 * dt);
+      }
+
+      // combat input
+      const K = Phaser.Input.Keyboard;
+      if (K.JustDown(k.SPACE)) this.partyAttack(time);
+      if (K.JustDown(k.ONE)) this.castSkill(0, time);
+      if (K.JustDown(k.TWO)) this.castSkill(1, time);
+      if (K.JustDown(k.THREE)) this.castSkill(2, time);
+      if (K.JustDown(k.FOUR)) this.castSkill(3, time);
+
+      // enemy AI: hunt when close and visible, otherwise drift about
+      for (const e of this.entities) {
+        if (e.kind !== 'enemy') continue;
+        const pd = Math.hypot(this.px - e.x, this.py - e.y);
+        e.aggro = pd < 7 && this.lineOfSight(e.x, e.y, this.px, this.py);
+        if (e.aggro) {
+          if (pd > 1.15) {
+            const step = (time < (e.slowUntil || 0) ? e.speed * 0.35 : e.speed) * dt;
+            const nx = e.x + (this.px - e.x) / pd * step;
+            const ny = e.y + (this.py - e.y) / pd * step;
+            if (this.enemyCanStand(nx, e.y, e)) e.x = nx;
+            if (this.enemyCanStand(e.x, ny, e)) e.y = ny;
+            // only adopt a new home cell outside the village — the idle
+            // glide is unchecked, so a cell inside would pull them through the walls
+            const cgx = Math.floor(e.x), cgy = Math.floor(e.y);
+            if (!this.inVillage(cgx + 0.5, cgy + 0.5, 0.4)) { e.gx = cgx; e.gy = cgy; }
+          } else if (time > e.nextAtk && this.eyeZ < 1.05) { // can't claw what flies
+            e.nextAtk = time + e.cd;
+            this.enemyStrike(e);
+          }
+        } else {
+          const txc = e.gx + 0.5, tyc = e.gy + 0.5;
+          const dx = txc - e.x, dy = tyc - e.y, d = Math.hypot(dx, dy);
+          if (d > 0.01) {
+            const s = Math.min(d, 2.2 * dt);
+            e.x += (dx / d) * s; e.y += (dy / d) * s;
+          }
+        }
+      }
+
+      const grounded = this.eyeZ < 0.7;
+
+      // doors swing open as you approach and shut behind you
+      if (grounded) for (const d of this.doors) {
+        const dd = Math.hypot(d.x + 0.5 - this.px, d.y + 0.5 - this.py);
+        if (!d.open && dd < 1.2) { this.map[d.y][d.x] = T_WOOD; d.open = true; }
+        else if (d.open && dd > 2.4) { this.map[d.y][d.x] = T_DOOR; d.open = false; }
+      }
+
+      // interactions (only with your boots on the ground)
+      const looted = [];
+      const picked = [];
+      this.nearVillager = null;
+      let nearVillagerDist = 1.5;
+      if (grounded) for (const e of this.entities) {
+        const d = Math.hypot(e.x - this.px, e.y - this.py);
+        if (e.kind === 'chest' && d < 0.75) looted.push(e);
+        if (e.kind === 'item' && d < 0.8) picked.push(e);
+        if (e.kind === 'villager' && d < nearVillagerDist) { this.nearVillager = e; nearVillagerDist = d; }
+        if (e.kind === 'fountain' && d < 1.0 && time > this.fountainCd) {
+          if (GameData.party.some(h => h.hp < h.maxHp || h.mp < h.maxMp)) {
+            GameData.party.forEach(h => { h.hp = h.maxHp; h.mp = h.maxMp; });
+            this.toast('The fountain restores the party!');
+            this.refreshHUD();
+          }
+          this.fountainCd = time + 4000;
+        }
+      }
+      for (const c of looted) {
+        const gold = ri(12, 35);
+        GameData.gold += gold;
+        this.entities.splice(this.entities.indexOf(c), 1);
+        this.toast(`You found a chest! +${gold} gold`);
+        this.refreshHUD();
+      }
+      for (const it of picked) {
+        this.entities.splice(this.entities.indexOf(it), 1);
+        GameData.flags.hasLostBlade = true;
+        if (GameData.quests.lostblade !== 'done') GameData.quests.lostblade = 'found';
+        this.toast('You recover a masterwork blade! Bram will want to see this.');
+        this.refreshHUD();
+      }
+
+      if (this.nearVillager) {
+        this.talkHint.setText(`[T] Talk to ${this.nearVillager.name}`).setAlpha(1);
+      } else {
+        this.talkHint.setAlpha(0);
+      }
+
+      this.pickTarget();
+    }
+
+    // render the 3D view
+    this.camZ = this.terrainH(this.px, this.py) + this.eyeZ;
+    R3D.render({
+      px: this.px, py: this.py, camZ: this.camZ,
+      angle: this.angle, pitch: this.pitch, time,
+      entities: this.entities,
+    });
+    this.updateHpBars();
+    this.crosshair.setColor(time < this.hitFlashUntil ? '#ffd75e' : '#ffffff');
+
+    this.updateMinimap();
+    const oct = Math.round(((this.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI / 4)) % 8;
+    this.compass.setText(['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'][oct]);
+
+    if (this.target) {
+      this.targetText.setText(`${ENEMY_TYPES[this.target.type].name}  ${this.target.hp}/${this.target.maxHp}`).setAlpha(1);
+    } else {
+      this.targetText.setAlpha(0);
+    }
+
+    GameData.party.forEach((h, i) => {
+      const ready = h.hp > 0 && time >= h.readyAt && h.mp >= SPELLS[h.quick].cost;
+      const r = this.hudRows[i];
+      if (r.skReady !== ready) { r.skReady = ready; r.sk.setColor(ready ? '#c8b060' : '#4a5064'); }
+    });
+  }
+
+  // ---------- real-time combat ----------
+
+  pickTarget() {
+    let best = null, bestD = 14;
+    for (const e of this.entities) {
+      if (e.kind !== 'enemy') continue;
+      const d = Math.hypot(e.x - this.px, e.y - this.py);
+      if (d < 0.2 || d >= bestD) continue;
+      const p = R3D.project(e.x, this.terrainH(e.x, e.y) + 0.45, e.y);
+      if (!p || !p.visible) continue;
+      if (Math.abs(p.x - 480) > 200 || Math.abs(p.y - 255) > 200) continue; // roughly in your sights
+      if (!this.lineOfSight(this.px, this.py, e.x, e.y, this.camZ)) continue;
+      best = e; bestD = d;
+    }
+    this.target = best;
+  }
+
+  updateHpBars() {
+    const g = this.hpBars;
+    g.clear();
+    for (const e of this.entities) {
+      if (e.kind !== 'enemy' || (e.hp >= e.maxHp && e !== this.target)) continue;
+      const d = Math.hypot(e.x - this.px, e.y - this.py);
+      if (d > 24) continue;
+      if (!this.lineOfSight(this.px, this.py, e.x, e.y, this.camZ)) continue;
+      const hgt = 1 / (e.vDiv || 1);
+      const p = R3D.project(e.x, this.terrainH(e.x, e.y) + hgt + 0.12, e.y);
+      if (!p || !p.visible) continue;
+      const bw = clamp(340 / d, 16, 84);
+      const bx = p.x - bw / 2, by = p.y - 6;
+      g.fillStyle(0x2a0d10, 1);
+      g.fillRect(bx, by, bw, 6);
+      g.fillStyle(e === this.target ? 0xff5a4a : 0xb03535, 1);
+      g.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), 6);
+      if (e === this.target) {
+        g.lineStyle(2, 0xffd75e, 1);
+        g.strokeRect(bx - 2, by - 2, bw + 4, 10);
+      }
+    }
+  }
+
+  partyAttack(time) {
+    if (this.dead || this.dialogOpen || this.sbOpen) return;
+    const t = this.target;
+    if (!t) {
+      if (time > (this._attackMsgCd || 0)) { this.toast('No monster in your sights.'); this._attackMsgCd = time + 1500; }
+      return;
+    }
+    const d = Math.hypot(t.x - this.px, t.y - this.py, this.eyeZ - 0.5); // altitude counts
+    let fired = 0;
+    for (const h of GameData.party) {
+      if (h.hp <= 0 || time < h.readyAt || d > h.range) continue;
+      h.readyAt = time + h.rec;
+      fired++;
+      this.damageEnemy(t, Math.max(1, h.atk + h.level + ri(0, 3) - t.def));
+      if (t.hp <= 0) break;
+    }
+    if (!fired && time > (this._attackMsgCd || 0)) {
+      this.toast(d > 2.2 ? 'Too far for Roderick — the others are recovering...' : 'The party is recovering...');
+      this._attackMsgCd = time + 1200;
+    }
+  }
+
+  castSkill(idx, time) {
+    if (this.dead || this.dialogOpen || this.sbOpen) return;
+    const h = GameData.party[idx];
+    if (!h || h.hp <= 0) return;
+    if (h.quick === 'fly' && this.flying) { // landing is always free
+      this.landing = true;
+      this.toast('You angle down to land...');
+      return;
+    }
+    if (time < h.readyAt) return;
+    const spell = SPELLS[h.quick];
+    if (h.mp < spell.cost) { this.toast(`${h.name} lacks the mana for ${spell.name}!`); return; }
+    const t = this.target;
+    const tDist = t ? Math.hypot(t.x - this.px, t.y - this.py, this.eyeZ - 0.5) : Infinity;
+    let ok = false;
+
+    switch (h.quick) {
+      case 'cleave': {
+        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 2.6);
+        if (!victims.length) { this.toast('No foes within reach of the cleave!'); return; }
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(h.atk * 0.7) + h.level + ri(0, 2) - v.def)));
+        ok = true;
+        break;
+      }
+      case 'doubleshot': {
+        if (!t || tDist > 9) { this.toast('No target in bow range!'); return; }
+        this.damageEnemy(t, Math.max(1, Math.round(h.atk * 0.8) + h.level + ri(0, 2) - t.def));
+        this.time.delayedCall(160, () => {
+          if (t.hp > 0 && this.entities.includes(t)) {
+            this.damageEnemy(t, Math.max(1, Math.round(h.atk * 0.8) + h.level + ri(0, 2) - t.def));
+          }
+        });
+        ok = true;
+        break;
+      }
+      case 'heal': {
+        const living = GameData.party.filter(x => x.hp > 0);
+        const target = living.reduce((a, b) => (a.hp / a.maxHp <= b.hp / b.maxHp ? a : b));
+        const amt = 14 + h.level * 3;
+        target.hp = Math.min(target.maxHp, target.hp + amt);
+        this.floatText(12 + GameData.party.indexOf(target) * 236 + 113, 545, `+${amt}`, '#80ff9a');
+        ok = true;
+        break;
+      }
+      case 'fireball': {
+        if (!t || tDist > 8) { this.toast('No target for the fireball!'); return; }
+        this.cameras.main.flash(120, 255, 140, 40);
+        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - t.x, e.y - t.y) < 2);
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - v.def)));
+        ok = true;
+        break;
+      }
+      case 'fly': {
+        this.flying = true;
+        this.landing = false;
+        this.flyCaster = idx;
+        this.flyDrainAt = time + 4000;
+        this.eyeZ = 0.75; // lift off
+
+        this.toast('The party takes wing! R/X (or PgUp/PgDn) to rise and dive — cast Fly again to land.');
+        ok = true;
+        break;
+      }
+      case 'frostnova': {
+        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 3.5);
+        if (!victims.length) { this.toast('No foes near enough to freeze!'); return; }
+        this.cameras.main.flash(140, 120, 180, 255);
+        victims.forEach(v => {
+          this.damageEnemy(v, Math.max(1, 7 + h.level * 2));
+          v.slowUntil = time + 2600;
+          v.nextAtk = Math.max(v.nextAtk, time + 1800);
+        });
+        ok = true;
+        break;
+      }
+    }
+
+    if (ok) {
+      h.mp -= spell.cost;
+      h.readyAt = time + h.rec * 1.3;
+      this.refreshHUD();
+    }
+  }
+
+  damageEnemy(e, dmg) {
+    if (e.hp <= 0) return;
+    e.hp -= dmg;
+    const p = this.projectEntity(e);
+    if (p) this.floatText(p.x + ri(-16, 16), p.y, `-${dmg}`, '#ff9a80');
+    this.hitFlashUntil = this.time.now + 130;
+    if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  killEnemy(e) {
+    const gold = ri(e.gold[0], e.gold[1]);
+    GameData.gold += gold;
+    const notes = this.grantXP(e.xp);
+    this.entities.splice(this.entities.indexOf(e), 1);
+    if (this.target === e) this.target = null;
+    this.toast(`${ENEMY_TYPES[e.type].name} slain! +${e.xp} XP, +${gold} gold` + (notes.length ? ' — ' + notes.join(' ') : ''));
+    if (!this.entities.some(x => x.kind === 'enemy')) {
+      this.time.delayedCall(1500, () => this.toast('The vale is at peace... you cleared every monster!'));
+    }
+    this.refreshHUD();
+  }
+
+  enemyStrike(e) {
+    if (this.time.now < this.invulnUntil) return;
+    const targets = GameData.party.filter(h => h.hp > 0);
+    if (!targets.length) return;
+    const h = targets[ri(0, targets.length - 1)];
+    const dmg = Math.max(1, e.atk + ri(-1, 2) - h.def);
+    h.hp = Math.max(0, h.hp - dmg);
+    this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, `-${dmg}`, '#ff8080');
+    this.tweens.add({ targets: this.dmgVignette, alpha: { from: 0.32, to: 0 }, duration: 300 });
+    this.cameras.main.shake(80, 0.003);
+    this.refreshHUD();
+    if (h.hp === 0) this.toast(`${h.name} falls!`);
+    if (GameData.party.every(x => x.hp <= 0)) this.partyWipe();
+  }
+
+  partyWipe() {
+    if (this.dead) return;
+    this.dead = true;
+    this.target = null;
+    const shade = this.add.rectangle(0, 0, 960, 640, 0x000000, 0.75).setOrigin(0).setDepth(2000);
+    const msg = this.add.text(480, 280, 'THE PARTY HAS FALLEN...', {
+      fontFamily: 'monospace', fontSize: '24px', color: '#ff8080',
+    }).setOrigin(0.5).setDepth(2001);
+    this.time.delayedCall(2200, () => {
+      GameData.gold = Math.floor(GameData.gold / 2);
+      GameData.party.forEach(h => { h.hp = Math.ceil(h.maxHp * 0.5); h.mp = h.maxMp; h.readyAt = 0; });
+      this.px = START.x; this.py = START.y; this.angle = 0;
+      this.pitch = 0; this.eyeZ = 0.5; this.flying = false; this.landing = false;
+      this.invulnUntil = this.time.now + 3000;
+      shade.destroy(); msg.destroy();
+      this.dead = false;
+      this.refreshHUD();
+      this.toast('The party wakes at camp, lighter of purse...');
+    });
+  }
+
+  // project an entity into HUD-space screen coords (for damage floaters)
+  projectEntity(e) {
+    const hgt = 1 / (e.vDiv || 1);
+    const p = R3D.project(e.x, this.terrainH(e.x, e.y) + hgt + 0.15, e.y);
+    if (!p) return null;
+    return { x: clamp(p.x, 20, 940), y: Math.max(24, p.y) };
+  }
+
+  floatText(x, y, msg, color) {
+    const t = this.add.text(x, y, msg, {
+      fontFamily: 'monospace', fontSize: '17px', color, fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(1500);
+    this.tweens.add({ targets: t, y: y - 36, alpha: 0, duration: 800, onComplete: () => t.destroy() });
+  }
+
+  // ---------- villager dialogue ----------
+
+  openDialogue(v) {
+    this.dialogOpen = true;
+    this.talkHint.setAlpha(0);
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.input.keyboard.enabled = false;
+    this.input.keyboard.disableGlobalCapture();
+    Dialogue.openFor(v, this);
+  }
+
+  dialogueClosed() {
+    this.dialogOpen = false;
+    this.input.keyboard.enabled = true;
+    this.input.keyboard.enableGlobalCapture();
+    this.input.keyboard.resetKeys();
+    this.invulnUntil = this.time.now + 800;
+  }
+
+  // ---------- spellbook ----------
+
+  buildSpellbook() {
+    this.sbOpen = false;
+    this.sbItems = [];
+    this.sbContainer = this.add.container(0, 0).setDepth(3000).setVisible(false);
+    this.sbContainer.add(this.add.rectangle(480, 250, 760, 360, 0x10131c, 0.96).setStrokeStyle(2, 0x4a5578));
+    this.sbContainer.add(this.add.text(480, 92, 'SPELLBOOK', { fontFamily: 'monospace', fontSize: '18px', color: '#ffd75e' }).setOrigin(0.5));
+    this.sbContainer.add(this.add.text(480, 116, "click a spell to ready it on that hero's key — B closes", { fontFamily: 'monospace', fontSize: '11px', color: '#8891ad' }).setOrigin(0.5));
+  }
+
+  openSpellbook() {
+    this.sbOpen = true;
+    for (const t of this.sbItems) t.destroy();
+    this.sbItems = [];
+    GameData.party.forEach((h, i) => {
+      const x = 150 + i * 190;
+      const head = this.add.text(x, 148, `${h.name}\n${h.cls}`, {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', align: 'center',
+      }).setOrigin(0.5, 0).setDepth(3001);
+      this.sbItems.push(head);
+      h.spells.forEach((id, j) => {
+        const sp = SPELLS[id];
+        const item = this.add.text(x, 202 + j * 52, `${sp.name}  (${sp.cost}mp)\n${sp.desc}`, {
+          fontFamily: 'monospace', fontSize: '11px', align: 'center',
+          color: h.quick === id ? '#ffd75e' : '#9aa4c8',
+          backgroundColor: h.quick === id ? 'rgba(90,74,20,0.55)' : 'rgba(38,46,74,0.6)',
+          padding: { x: 8, y: 5 },
+        }).setOrigin(0.5, 0).setDepth(3001).setInteractive({ useHandCursor: true });
+        item.on('pointerdown', () => {
+          h.quick = id;
+          this.refreshHUD();
+          this.openSpellbook(); // rebuild to move the highlight
+        });
+        this.sbItems.push(item);
+      });
+    });
+    this.sbContainer.setVisible(true);
+  }
+
+  closeSpellbook() {
+    this.sbOpen = false;
+    this.sbContainer.setVisible(false);
+    for (const t of this.sbItems) t.destroy();
+    this.sbItems = [];
+  }
+
+  // ---------- minimap ----------
+
+  buildMinimap() {
+    const S = 2;
+    const tex = this.textures.createCanvas('mmap', MAP_W * S, MAP_H * S);
+    const g = tex.getContext();
+    const colors = {
+      [T_DIRT]: '#7a5c34', [T_COBBLE]: '#8a8f98', [T_WATER]: '#2a5d8f',
+      [T_WOOD]: '#8f6a42', [T_ROCK]: '#6a6e78', [T_FENCE]: '#8a6238', [T_TIMBER]: '#d8cfb8',
+      [T_PLANK]: '#9a7248', [T_STONE]: '#9aa0aa', [T_DOOR]: '#6b4526',
+      [T_TIMBER_WIN]: '#d8cfb8', [T_STONE_WIN]: '#9aa0aa', [T_PLANK_WIN]: '#9a7248',
+      [T_SIGN_TAVERN]: '#d8cfb8', [T_SIGN_SMITH]: '#9aa0aa', [T_SIGN_TRADE]: '#9a7248',
+      [T_BANNER]: '#d8cfb8', [T_CHIMNEY]: '#6a6e78',
+    };
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
+      const t = this.map[y][x];
+      let c = colors[t];
+      if (c === undefined) {
+        // grass: shade by elevation so the hills show on the map
+        const e = clamp(this.terrainH(x + 0.5, y + 0.5) / 4.5, 0, 1);
+        const rC = Math.round(0x2e + e * 0x38), gC = Math.round(0x5c + e * 0x42), bC = Math.round(0x2e + e * 0x1a);
+        c = '#' + rC.toString(16).padStart(2, '0') + gC.toString(16).padStart(2, '0') + bC.toString(16).padStart(2, '0');
+      }
+      g.fillStyle = c;
+      g.fillRect(x * S, y * S, S, S);
+    }
+    tex.refresh();
+
+    const ox = 960 - MAP_W * S - 10;
+    this.mmContainer = this.add.container(ox, 10).setDepth(1000);
+    this.mmContainer.add(this.add.image(0, 0, 'mmap').setOrigin(0).setAlpha(0.85));
+    this.mmDots = this.add.graphics();
+    this.mmContainer.add(this.mmDots);
+    this.mmScale = S;
+  }
+
+  updateMinimap() {
+    if (!this.mmContainer.visible) return;
+    const S = this.mmScale, g = this.mmDots;
+    g.clear();
+    for (const e of this.entities) {
+      g.fillStyle(e.kind === 'enemy' ? (e.aggro ? 0xff2222 : 0xcc5555)
+        : e.kind === 'chest' ? 0xffd75e
+        : e.kind === 'item' ? 0xfff0a0
+        : e.kind === 'villager' ? 0x9ad8ff
+        : e.kind === 'tree' ? 0x1e4d22
+        : e.kind === 'prop' ? 0x8a8f98 : 0x6fb0e8);
+      g.fillRect(e.x * S - 1.5, e.y * S - 1.5, 3, 3);
+    }
+    const x = this.px * S, y = this.py * S, a = this.angle;
+    g.fillStyle(0xffffff);
+    g.fillTriangle(
+      x + Math.cos(a) * 5, y + Math.sin(a) * 5,
+      x + Math.cos(a + 2.5) * 3.5, y + Math.sin(a + 2.5) * 3.5,
+      x + Math.cos(a - 2.5) * 3.5, y + Math.sin(a - 2.5) * 3.5);
+  }
+
+  // ---------- HUD ----------
+
+  buildHUD() {
+    this.add.rectangle(0, 510, 960, 130, 0x10131c).setOrigin(0).setDepth(999);
+    this.hudRows = [];
+    GameData.party.forEach((h, i) => {
+      const x = 12 + i * 236, y = 518;
+      this.add.rectangle(x, y, 226, 114, 0x1c2233).setOrigin(0).setStrokeStyle(1, 0x39415c).setDepth(1000);
+      const name = this.add.text(x + 10, y + 8, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ffffff' }).setDepth(1001);
+      const cls = this.add.text(x + 10, y + 26, h.cls, { fontFamily: 'monospace', fontSize: '11px', color: '#9aa4c8' }).setDepth(1001);
+      const hpBg = this.add.rectangle(x + 10, y + 52, 206, 10, 0x46151a).setOrigin(0, 0.5).setDepth(1001);
+      const hpBar = this.add.rectangle(x + 10, y + 52, 206, 10, 0x3ecf5a).setOrigin(0, 0.5).setDepth(1002);
+      const mpBg = this.add.rectangle(x + 10, y + 68, 206, 7, 0x141a3a).setOrigin(0, 0.5).setDepth(1001);
+      const mpBar = this.add.rectangle(x + 10, y + 68, 206, 7, 0x4a86e8).setOrigin(0, 0.5).setDepth(1002);
+      const hpText = this.add.text(x + 10, y + 80, '', { fontFamily: 'monospace', fontSize: '11px', color: '#8891ad' }).setDepth(1001);
+      const sk = this.add.text(x + 10, y + 96, '', { fontFamily: 'monospace', fontSize: '10px', color: '#c8b060' }).setDepth(1001);
+      this.hudRows.push({ name, hpBar, mpBar, hpText, sk, skReady: true });
+    });
+    this.statusText = this.add.text(12, 492, '', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#ffd75e',
+      backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 6, y: 2 },
+    }).setDepth(1000);
+    this.refreshHUD();
+  }
+
+  refreshHUD() {
+    GameData.party.forEach((h, i) => {
+      const r = this.hudRows[i];
+      r.name.setText(`${h.name} Lv${h.level}`);
+      r.name.setColor(h.hp <= 0 ? '#777777' : '#ffffff');
+      r.hpBar.scaleX = Math.max(0, h.hp / h.maxHp);
+      r.mpBar.scaleX = h.maxMp ? h.mp / h.maxMp : 0;
+      r.hpText.setText(`HP ${h.hp}/${h.maxHp}  MP ${h.mp}/${h.maxMp}`);
+      r.sk.setText(`[${i + 1}] ${SPELLS[h.quick].name} ${SPELLS[h.quick].cost}mp`);
+    });
+    const foes = this.entities ? this.entities.filter(e => e.kind === 'enemy').length : 0;
+    this.statusText.setText(`Gold: ${GameData.gold}   Foes left: ${foes}` +
+      (this.flying ? '   |   FLYING (R/X rise-dive, cast Fly to land)' : ''));
+    const q = GameData.quests.lostblade;
+    this.questText.setText(
+      q === 'available' ? 'Bram the Smith looks troubled — visit the smithy' :
+      q === 'active' ? 'Quest: The Lost Blade — goblin camp east, across the river ford' :
+      q === 'found' ? 'Quest: The Lost Blade — return the blade to Bram' : '');
+  }
+
+  grantXP(amount) {
+    const notes = [];
+    GameData.party.forEach(h => {
+      if (h.hp <= 0) return;
+      h.xp += amount;
+      while (h.xp >= xpForLevel(h.level)) {
+        h.xp -= xpForLevel(h.level);
+        h.level++;
+        h.maxHp += 6; h.atk += 1;
+        if (h.level % 2 === 0) h.def += 1;
+        h.maxMp += (h.maxMp >= 12 ? 4 : 2);
+        h.hp = h.maxHp; h.mp = h.maxMp;
+        notes.push(`${h.name} is now level ${h.level}!`);
+      }
+    });
+    return notes;
+  }
+
+  // ---------- quests ----------
+
+  acceptQuest(id) {
+    if (GameData.quests[id] !== 'available') return;
+    GameData.quests[id] = 'active';
+    this.toast(`Quest accepted: ${QUESTS[id].title}`);
+    this.refreshHUD();
+  }
+
+  completeQuest(id) {
+    if (GameData.quests[id] === 'done') return;
+    GameData.quests[id] = 'done';
+    const mal = GameData.party[3];
+    if (!mal.spells.includes('fly')) {
+      mal.spells.push('fly');
+      mal.quick = 'fly';
+    }
+    const notes = this.grantXP(60);
+    this.toast('Quest complete! Malwick learns FLY — cast with 4, then R/X to rise and dive' +
+      (notes.length ? ' — ' + notes.join(' ') : ''));
+    this.refreshHUD();
+  }
+
+  toast(msg) {
+    this.toastText.setText(msg).setAlpha(1);
+    if (this.toastTween) this.toastTween.stop();
+    this.toastTween = this.tweens.add({ targets: this.toastText, alpha: 0, delay: 2400, duration: 500 });
+  }
+}

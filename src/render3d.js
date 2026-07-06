@@ -1,0 +1,284 @@
+// Real-3D renderer (three.js) — replaces the software raycaster so the vale
+// can have ACTUAL terrain: a heightfield with rolling hills you walk over,
+// carved riverbeds, a mountain rim, and buildings with real gabled roofs.
+//
+// world.js drives it: R3D.init(container, worldData) once, R3D.render(state)
+// every frame. Boot (world.js) still paints all textures into ART/SKY canvases.
+
+const ART = {};
+const WALL_ART = {};
+const WALL_ART_ALT = {}; // legacy raycaster variants; Boot still fills it, 3D path ignores it
+const FLOOR_PIX = {}; // legacy from the raycaster; Boot still fills it, 3D path ignores it
+let SKY = null;
+
+// wall-piece heights in world units (village structures; the rock border is terrain now)
+const WALL_HEIGHT = {
+  5: 1.6, 6: 0.65, 7: 1.25, 8: 1.25, 9: 1.25,
+  10: 1.25, 11: 1.25, 12: 1.25, 13: 1.25,
+  14: 1.25, 15: 1.25, 16: 1.25, 17: 1.25,
+  18: 1.9,
+};
+
+const R3D = {
+  ready: false,
+
+  init(container, world) {
+    this.world = world; // { map, mapW, mapH, heights, terrainH(x,y), doors, buildings }
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'view3d';
+    canvas.style.position = 'absolute';
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.zIndex = '0';
+    container.insertBefore(canvas, container.firstChild);
+    this.canvas = canvas;
+
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+    this.renderer.setSize(960, 510, false);
+
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(0xc6d8ec, 10, 36);
+
+    this.camera = new THREE.PerspectiveCamera(68, 960 / 510, 0.08, 140);
+
+    // clear-afternoon light
+    this.scene.add(new THREE.HemisphereLight(0xbfd8f8, 0x4a6a3a, 0.95));
+    const sun = new THREE.DirectionalLight(0xfff2d8, 0.8);
+    sun.position.set(-40, 60, -25);
+    this.scene.add(sun);
+
+    this.buildSky();
+    this.buildTerrain();
+    this.buildWater();
+    this.buildWalls();
+    this.buildRoofs();
+
+    this.spriteMats = {};
+    this.sprites = new Map();
+    this.ready = true;
+  },
+
+  // ---------- static geometry ----------
+
+  buildSky() {
+    const tex = new THREE.CanvasTexture(SKY);
+    tex.wrapS = THREE.RepeatWrapping;
+    const geo = new THREE.SphereGeometry(90, 24, 10);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false });
+    this.skyMesh = new THREE.Mesh(geo, mat);
+    this.scene.add(this.skyMesh);
+  },
+
+  buildTerrain() {
+    const { mapW, mapH, heights, map } = this.world;
+    const W1 = mapW + 1, H1 = mapH + 1;
+    const pos = [], col = [], idx = [];
+    for (let y = 0; y < H1; y++) {
+      for (let x = 0; x < W1; x++) {
+        const h = heights[y][x];
+        pos.push(x, h, y);
+        const tx = Math.min(x, mapW - 1), ty = Math.min(y, mapH - 1);
+        let t = map[ty][tx];
+        if (t >= 5) t = 0;
+        let c;
+        if (t === 1) c = [0.48, 0.36, 0.20];       // dirt road
+        else if (t === 2) c = [0.54, 0.56, 0.60];  // cobbles
+        else if (t === 4) c = [0.56, 0.42, 0.26];  // interior wood
+        else if (t === 3) c = [0.24, 0.34, 0.28];  // lake/river bed
+        else {
+          // grass, shaded by elevation with a subtle patchwork
+          const e = Math.max(0, Math.min(1, h / 4.5));
+          const n = (((x * 7 + y * 13) % 5) - 2) * 0.014;
+          c = [0.22 + e * 0.26 + n, 0.48 + e * 0.24 + n, 0.20 + e * 0.14];
+        }
+        col.push(c[0], c[1], c[2]);
+      }
+    }
+    for (let y = 0; y < mapH; y++) {
+      for (let x = 0; x < mapW; x++) {
+        const a = y * W1 + x, b = a + 1, c2 = a + W1, d = c2 + 1;
+        idx.push(a, c2, b, b, c2, d);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0 });
+    this.terrainMesh = new THREE.Mesh(geo, mat);
+    this.scene.add(this.terrainMesh);
+  },
+
+  buildWater() {
+    const { map, mapW, mapH } = this.world;
+    const wl = -0.22;
+    const pos = [], idx = [];
+    let n = 0;
+    for (let y = 0; y < mapH; y++) {
+      for (let x = 0; x < mapW; x++) {
+        if (map[y][x] !== 3) continue;
+        pos.push(x, wl, y, x + 1, wl, y, x, wl, y + 1, x + 1, wl, y + 1);
+        idx.push(n, n + 2, n + 1, n + 1, n + 2, n + 3);
+        n += 4;
+      }
+    }
+    if (!n) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshPhongMaterial({
+      color: 0x2f6fa8, transparent: true, opacity: 0.78, shininess: 80, specular: 0x88aacc,
+    });
+    this.scene.add(new THREE.Mesh(geo, mat));
+  },
+
+  wallTex(key) {
+    if (!this.wallTexes) this.wallTexes = {};
+    if (!this.wallTexes[key]) {
+      const tex = new THREE.CanvasTexture(ART[key]);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      this.wallTexes[key] = tex;
+    }
+    return this.wallTexes[key];
+  },
+
+  buildWalls() {
+    const { map, mapW, mapH, doors, terrainH } = this.world;
+    const doorSet = new Set(doors.map(d => d.x + ',' + d.y));
+    this.doorMeshes = new Map();
+    const TILE_ART = {
+      6: 'fencewall', 7: 'timberwall', 8: 'plankwall', 9: 'rockwall',
+      10: 'doorwall', 11: 'timberwin', 12: 'stonewin', 13: 'plankwin',
+      14: 'signtavern', 15: 'signsmith', 16: 'signtrade', 17: 'bannerwall', 18: 'rockwall',
+    };
+    const mats = {};
+    const matFor = key => {
+      if (!mats[key]) mats[key] = new THREE.MeshLambertMaterial({ map: this.wallTex(key) });
+      return mats[key];
+    };
+    for (let y = 0; y < mapH; y++) {
+      for (let x = 0; x < mapW; x++) {
+        const t = map[y][x];
+        const isDoor = doorSet.has(x + ',' + y);
+        if (!isDoor && (t < 6 || !TILE_ART[t])) continue; // rock border (5) is terrain now
+        const key = isDoor ? 'doorwall' : TILE_ART[t];
+        const h = WALL_HEIGHT[isDoor ? 10 : t] || 1.25;
+        const ground = terrainH(x + 0.5, y + 0.5);
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), matFor(key));
+        mesh.position.set(x + 0.5, ground + h / 2, y + 0.5);
+        this.scene.add(mesh);
+        if (isDoor) {
+          const d = doors.find(dd => dd.x === x && dd.y === y);
+          if (d) this.doorMeshes.set(d, mesh);
+        }
+      }
+    }
+  },
+
+  buildRoofs() {
+    for (const b of this.world.buildings) {
+      const o = 0.22;                       // eave overhang
+      const x1 = b.x1 - o, x2 = b.x2 + 1 + o;
+      const z1 = b.y1 - o, z2 = b.y2 + 1 + o;
+      const eave = b.h + 0.02, peak = b.h + 0.75;
+      const cz = (z1 + z2) / 2;
+      const pos = [
+        // north slope
+        x1, eave, z1, x2, eave, z1, x2, peak, cz,
+        x1, eave, z1, x2, peak, cz, x1, peak, cz,
+        // south slope
+        x2, eave, z2, x1, eave, z2, x1, peak, cz,
+        x2, eave, z2, x1, peak, cz, x2, peak, cz,
+        // gables
+        x1, eave, z2, x1, eave, z1, x1, peak, cz,
+        x2, eave, z1, x2, eave, z2, x2, peak, cz,
+      ];
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshPhongMaterial({ color: b.color, flatShading: true, shininess: 0, side: THREE.DoubleSide });
+      this.scene.add(new THREE.Mesh(geo, mat));
+    }
+  },
+
+  // ---------- entities ----------
+
+  spriteMat(key) {
+    if (!this.spriteMats[key]) {
+      const tex = new THREE.CanvasTexture(ART[key]);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      this.spriteMats[key] = new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.15 });
+    }
+    return this.spriteMats[key];
+  },
+
+  syncEntities(entities, time) {
+    const { terrainH } = this.world;
+    const seen = new Set();
+    for (const e of entities) {
+      seen.add(e);
+      let s = this.sprites.get(e);
+      const hgt = 1 / (e.vDiv || 1);
+      if (!s) {
+        let mat = this.spriteMat(e.art);
+        if (e.kind === 'decor') mat = mat.clone(); // decor pulses its own opacity
+        s = new THREE.Sprite(mat);
+        s.scale.set(hgt, hgt, 1);
+        this.scene.add(s);
+        this.sprites.set(e, s);
+      }
+      s.position.set(e.x, terrainH(e.x, e.y) + hgt / 2 + (e.zOff || 0), e.y);
+      if (e.kind === 'decor') s.material.opacity = 0.55 + 0.25 * Math.sin(time * 0.0012 + e.x * 3);
+    }
+    for (const [e, s] of this.sprites) {
+      if (!seen.has(e)) {
+        this.scene.remove(s);
+        this.sprites.delete(e);
+      }
+    }
+  },
+
+  // ---------- per frame ----------
+
+  render(state) {
+    if (!this.ready) return;
+    this.camera.position.set(state.px, state.camZ, state.py);
+    const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+    this.camera.lookAt(
+      state.px + Math.cos(state.angle) * cp,
+      state.camZ + sp,
+      state.py + Math.sin(state.angle) * cp);
+    this.syncEntities(state.entities, state.time);
+    for (const [d, m] of this.doorMeshes) m.visible = !d.open;
+    this.skyMesh.position.copy(this.camera.position);
+    this.renderer.render(this.scene, this.camera);
+  },
+
+  // world point -> overlay UI coords (960x640 space; the 3D view is the top 510)
+  project(x, y, z) {
+    const dx = x - this.camera.position.x, dy = y - this.camera.position.y, dz = z - this.camera.position.z;
+    const f = new THREE.Vector3();
+    this.camera.getWorldDirection(f);
+    if (f.x * dx + f.y * dy + f.z * dz < 0.1) return null; // behind us
+    const v = new THREE.Vector3(x, y, z).project(this.camera);
+    return {
+      x: (v.x * 0.5 + 0.5) * 960,
+      y: (-v.y * 0.5 + 0.5) * 510,
+      visible: Math.abs(v.x) < 1.4 && Math.abs(v.y) < 1.4,
+    };
+  },
+
+  // mirror Phaser's letterboxed CSS box; the 3D canvas takes the top 510/640 of it
+  syncSize(phCanvas) {
+    const st = phCanvas.style, c = this.canvas.style;
+    c.width = st.width;
+    c.height = 'calc(' + st.height + ' * 0.796875)';
+    c.marginLeft = st.marginLeft;
+    c.marginTop = st.marginTop;
+  },
+};

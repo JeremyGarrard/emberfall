@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rpg",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 8123,
+      "autoPort": true
+    }
+  ]
+}
