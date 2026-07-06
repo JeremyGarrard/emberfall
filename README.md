@@ -97,7 +97,8 @@ potions or gems. The party bar shows painted portraits, MM7-style.
 - **The Lost Blade** — Bram the Smith's masterwork sword was stolen by goblins camped far
   east across the ford. Accept the quest in his dialogue (the offer button), follow the
   road, take the camp, walk over the blade, and bring it home. Reward: party XP and a new
-  spell — **Frost Nova** — for Malwick. A quest tracker sits above the party bar.
+  spell — **Fly** — for Malwick (R/X or PgUp/PgDn to rise and dive, cast again to land;
+  melee monsters can't touch an airborne party). A quest tracker sits above the party bar.
 - **Magic** — every hero knows spells from a shared registry (`SPELLS` in `src/data.js`).
   Keys 1–4 cast each hero's *readied* spell; **B** opens the spellbook to click a different
   one into the slot. Frost Nova damages and *slows* everything around the party — watch
@@ -108,11 +109,14 @@ potions or gems. The party bar shows painted portraits, MM7-style.
 | Context | Keys |
 |---|---|
 | Walk / strafe | W/S (or ↑/↓) walk, A/D strafe |
-| Turn | ←/→, or click the view for mouse-look (Esc releases) |
-| Attack (party volley) | SPACE, or click |
-| Hero skills | 1 / 2 / 3 / 4 |
+| Turn / look | ←/→, or click the view for mouse-look with vertical tilt (Esc releases) |
+| Attack (party volley) | F, SPACE, or click |
+| Cast readied spells | 1 / 2 / 3 / 4 |
+| Spellbook / Inventory | B / I |
+| Fly (once learned) | R/X or PgUp/PgDn rise and dive; cast again to land |
 | Talk to villager | T (when close) |
-| Minimap | M toggles |
+| Minimap / Fullscreen | M / F11 |
+| New game | N twice (progress auto-saves) |
 
 ## Code layout
 
