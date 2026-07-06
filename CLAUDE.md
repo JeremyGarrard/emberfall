@@ -23,7 +23,10 @@ Read `ARCHITECTURE.md` before touching code. Pick tasks from `BACKLOG.md`.
 - **World gen must stay deterministic**: generation code uses `gri()`/`grand()` (seeded),
   never `Math.random()`. Combat/loot randomness uses `Math.random()`/`ri()` freely.
 - Entity `uid`s come from seeded creation order — never reorder `buildEntities` spawn
-  blocks or saved `gone` lists corrupt. Append new spawns at the end.
+  blocks or saved `gone` lists corrupt. Append new spawns at the end. **If your change
+  adds/removes ANY spawn before the end of the order, bump the save version in
+  `saveGame()` and add a migration branch in `create()`'s loader (see the v1→v2
+  migration for the pattern: keep party/gold/quests, reset seed + gone).**
 - Extend through registries (`SPELLS`, `ITEM_TYPES`, `VILLAGERS`, `SHOP_STOCK`,
   layouts), not by new special cases, wherever possible.
 - Overlay panels (inventory/spellbook/shop) must guard combat input (`invOpen` etc.)
