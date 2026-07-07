@@ -699,58 +699,253 @@ class BootScene extends Phaser.Scene {
       g.fillStyle = '#5a4e3a'; g.fillRect(2, 35, 36, 3); g.fillRect(35, 2, 3, 36);
     });
 
-    // -- portraits, 64px busts --
-    makeArtWH('pt_roderick', 64, 64, g => {
-      g.fillStyle = '#232833'; g.fillRect(0, 0, 64, 64);
-      g.fillStyle = '#5a616e'; g.fillRect(6, 50, 52, 14);        // pauldrons
-      ell(g, 32, 38, 15, 17, '#e8c39e');                          // face
-      g.fillStyle = '#8d9099';                                    // helm
-      ell(g, 32, 20, 18, 13, '#8d9099');
-      g.fillRect(14, 18, 36, 10);
-      g.fillRect(29, 5, 6, 12);
-      g.fillStyle = '#6a6f7a'; g.fillRect(14, 26, 36, 2);
-      g.fillStyle = '#6b4a2e'; g.fillRect(21, 46, 22, 12);        // beard
-      ell(g, 26, 36, 2.4, 3, '#232833'); ell(g, 38, 36, 2.4, 3, '#232833');
-      g.fillStyle = '#c9976e'; g.fillRect(30, 38, 4, 6);          // nose
-    });
-    makeArtWH('pt_wren', 64, 64, g => {
-      g.fillStyle = '#1f2b1f'; g.fillRect(0, 0, 64, 64);
-      g.fillStyle = '#3c5c34'; g.fillRect(8, 52, 48, 12);         // cloak
-      ell(g, 32, 38, 13, 15, '#e0b48e');                          // face
-      g.fillStyle = '#3c5c34';                                    // hood
-      ell(g, 32, 22, 17, 14, '#3c5c34');
-      g.fillRect(15, 20, 34, 8);
-      tri(g, [15, 28, 20, 44, 15, 46], '#3c5c34');
-      tri(g, [49, 28, 44, 44, 49, 46], '#3c5c34');
-      g.fillStyle = '#d0b040'; tri(g, [44, 8, 52, 22, 46, 22]);   // feather
-      ell(g, 27, 36, 2.2, 2.8, '#1f2b1f'); ell(g, 38, 36, 2.2, 2.8, '#1f2b1f');
-      g.fillStyle = '#b88a60'; g.fillRect(31, 38, 3, 5);
-    });
-    makeArtWH('pt_serena', 64, 64, g => {
-      g.fillStyle = '#2e2838'; g.fillRect(0, 0, 64, 64);
-      g.fillStyle = '#e8e4da'; g.fillRect(10, 52, 44, 12);        // robe
-      ell(g, 32, 38, 13, 15, '#f0cca8');                          // face
-      g.fillStyle = '#d9c26a';                                    // hair
-      ell(g, 32, 24, 16, 13, '#d9c26a');
-      g.fillRect(16, 24, 8, 26); g.fillRect(40, 24, 8, 26);
-      g.strokeStyle = '#c9a227'; g.lineWidth = 3;                 // circlet
-      g.beginPath(); g.moveTo(18, 20); g.lineTo(46, 20); g.stroke();
-      ell(g, 32, 19, 2.5, 2.5, '#6fb0e8');
-      ell(g, 27, 36, 2.2, 2.8, '#2e2838'); ell(g, 38, 36, 2.2, 2.8, '#2e2838');
-      g.fillStyle = '#d8a888'; g.fillRect(31, 38, 3, 5);
-    });
-    makeArtWH('pt_malwick', 64, 64, g => {
-      g.fillStyle = '#241f30'; g.fillRect(0, 0, 64, 64);
-      g.fillStyle = '#4a3a6a'; g.fillRect(8, 52, 48, 12);         // robe
-      ell(g, 32, 40, 13, 14, '#e0c0a0');                          // face
-      g.fillStyle = '#d4d8de'; g.fillRect(22, 48, 20, 14);        // gray beard
-      ell(g, 32, 52, 10, 9, '#d4d8de');
-      g.fillStyle = '#5a4088';                                    // wizard hat
-      tri(g, [32, 2, 12, 30, 52, 30], '#5a4088');
-      ell(g, 32, 30, 22, 5, '#5a4088');
-      ell(g, 40, 14, 2, 2, '#d0b040');                            // star
-      ell(g, 27, 38, 2.2, 2.6, '#241f30'); ell(g, 38, 38, 2.2, 2.6, '#241f30');
-    });
+    // ---- painterly portrait kit (128px): gradient-shaded faces with real
+    // eyes, rim light and volumetric hair. Every party + villager face uses it.
+    // Override any painter with a real PNG via assets/manifest.json.
+    const disc = (g, x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+    const oval = (g, x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+
+    const paintEye = (g, x, y, o) => {
+      g.save();
+      g.globalAlpha = 0.35; oval(g, x, y + 1.5, 8, 5.5, o.skinShadow); g.globalAlpha = 1; // socket
+      oval(g, x, y, 6.5, 4.4, '#f4efe4');                     // sclera
+      g.fillStyle = 'rgba(120,90,70,0.25)'; g.beginPath(); g.ellipse(x, y - 1, 6.5, 3, 0, Math.PI, 0); g.fill();
+      disc(g, x, y + 0.4, 3.3, o.eye);                        // iris
+      disc(g, x, y + 0.4, 1.7, '#161018');                   // pupil
+      disc(g, x - 1.3, y - 1, 1.1, '#ffffff');               // catchlight
+      g.strokeStyle = o.lid; g.lineWidth = 2; g.lineCap = 'round'; // upper lid
+      g.beginPath(); g.moveTo(x - 7, y - 2.5); g.quadraticCurveTo(x, y - 6, x + 7, y - 2.5); g.stroke();
+      g.restore();
+    };
+
+    const paintPortrait = (g, o) => {
+      const W = 128, H = 128, fx = 64, fy = 76, rx = 31, ry = 37;
+      const bg = g.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, o.bg1); bg.addColorStop(1, o.bg0);
+      g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      const glow = g.createRadialGradient(64, 64, 6, 64, 70, 70);
+      glow.addColorStop(0, o.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = glow; g.fillRect(0, 0, W, H);
+      if (o.shoulders) o.shoulders(g);
+      // neck
+      g.fillStyle = o.skinShadow; g.fillRect(53, 100, 22, 20);
+      g.globalAlpha = 0.4; g.fillStyle = '#000'; g.fillRect(53, 100, 22, 6); g.globalAlpha = 1;
+      // face volume via radial gradient (light upper-left → shadow lower-right)
+      const fg = g.createRadialGradient(fx - 11, fy - 14, 5, fx, fy, 44);
+      fg.addColorStop(0, o.skinLight); fg.addColorStop(0.55, o.skin); fg.addColorStop(1, o.skinShadow);
+      g.fillStyle = fg;
+      g.beginPath();
+      g.moveTo(fx - rx, fy - 6);
+      g.bezierCurveTo(fx - rx, fy - ry, fx + rx, fy - ry, fx + rx, fy - 6);
+      g.bezierCurveTo(fx + rx, fy + ry - 6, fx + 12, fy + ry + 4, fx, fy + ry + 6);
+      g.bezierCurveTo(fx - 12, fy + ry + 4, fx - rx, fy + ry - 6, fx - rx, fy - 6);
+      g.fill();
+      // cheek blush
+      g.save(); g.globalAlpha = 0.22; disc(g, 48, 86, 8, o.blush); disc(g, 80, 86, 8, o.blush); g.restore();
+      // rim light down the shadow edge
+      g.save(); g.globalAlpha = 0.55; g.strokeStyle = o.rim; g.lineWidth = 3;
+      g.beginPath(); g.ellipse(fx, fy, rx, ry, 0, -0.5, 1.0); g.stroke(); g.restore();
+      // brows
+      g.strokeStyle = o.brow; g.lineWidth = 3.4; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(44, 64); g.quadraticCurveTo(53, 60 + (o.brY || 0), 62, 64); g.stroke();
+      g.beginPath(); g.moveTo(66, 64); g.quadraticCurveTo(75, 60 + (o.brY || 0), 84, 64); g.stroke();
+      paintEye(g, 53, 72, o); paintEye(g, 75, 72, o);
+      // nose: shadow on one side, lit bridge
+      g.save(); g.globalAlpha = 0.4; g.fillStyle = o.skinShadow;
+      g.beginPath(); g.moveTo(64, 74); g.lineTo(59, 90); g.lineTo(66, 90); g.closePath(); g.fill(); g.restore();
+      g.fillStyle = o.skinLight; g.globalAlpha = 0.7; g.fillRect(63, 76, 2.5, 13); g.globalAlpha = 1;
+      disc(g, 61, 90, 1.6, o.skinShadow); disc(g, 67, 90, 1.6, o.skinShadow); // nostrils
+      // mouth
+      g.strokeStyle = o.mouth; g.lineWidth = 2.6; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(56, 99); g.quadraticCurveTo(64, o.smile ? 104 : 100.5, 72, 99); g.stroke();
+      if (o.smile) { g.globalAlpha = 0.3; g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(58, 100); g.quadraticCurveTo(64, 103, 70, 100); g.stroke(); g.globalAlpha = 1; }
+      if (o.hair) o.hair(g);
+      if (o.head) o.head(g);
+      if (o.extra) o.extra(g);
+    };
+
+    // strand-textured hair mass; drawShape fills the silhouette, then streaks
+    const hairMass = (g, drawShape, base, dark, light) => {
+      g.fillStyle = base; drawShape(g);
+      g.save(); g.beginPath(); drawShape(g); g.clip();
+      g.lineWidth = 2; g.lineCap = 'round';
+      let s = 20;
+      const r = () => (s = (s * 1103515245 + 12345) >>> 0) / 4294967296;
+      for (let i = 0; i < 34; i++) {
+        g.strokeStyle = r() < 0.5 ? dark : light;
+        const x = 20 + r() * 88, y = 6 + r() * 60;
+        g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + (r() - 0.5) * 10, y + 12, x + (r() - 0.5) * 8, y + 26); g.stroke();
+      }
+      g.restore();
+    };
+
+    // -- party portraits --
+    makeArtWH('pt_roderick', 128, 128, g => paintPortrait(g, {
+      bg0: '#1a1e28', bg1: '#2c3446', glow: 'rgba(120,140,180,0.5)',
+      skin: '#d9a878', skinLight: '#f0c99e', skinShadow: '#a97c52', blush: '#d06848',
+      eye: '#5a7a5a', lid: '#7a5638', brow: '#5a3f28', mouth: '#8a5040', rim: '#cfe0ff',
+      shoulders: g2 => { g2.fillStyle = '#5a616e'; g2.fillRect(8, 104, 112, 24); g2.fillStyle = '#454b56'; g2.fillRect(8, 104, 112, 5); g2.fillStyle = '#787f8c'; g2.fillRect(20, 108, 88, 3); },
+      hair: g2 => { g2.fillStyle = '#5a3f28'; g2.beginPath(); g2.moveTo(30, 96); g2.lineTo(34, 108); g2.lineTo(50, 106); g2.lineTo(46, 92); g2.fill(); g2.beginPath(); g2.moveTo(98, 96); g2.lineTo(94, 108); g2.lineTo(78, 106); g2.lineTo(82, 92); g2.fill(); },
+      head: g2 => {
+        // steel great-helm: dome + brow band + nasal guard
+        const hg = g2.createLinearGradient(0, 20, 0, 62); hg.addColorStop(0, '#b3b9c4'); hg.addColorStop(1, '#767d8a');
+        g2.fillStyle = hg;
+        g2.beginPath(); g2.moveTo(30, 58); g2.bezierCurveTo(28, 18, 100, 18, 98, 58); g2.lineTo(92, 58); g2.bezierCurveTo(92, 30, 36, 30, 36, 58); g2.closePath(); g2.fill();
+        g2.fillStyle = '#8d9099'; g2.fillRect(30, 54, 68, 8);
+        g2.fillStyle = '#c8ccd4'; g2.fillRect(30, 54, 68, 2);
+        g2.fillStyle = '#767d8a'; g2.fillRect(61, 58, 6, 26);      // nasal guard
+        g2.fillStyle = '#aeb4bf'; g2.fillRect(61, 58, 2, 26);
+        disc(g2, 64, 26, 3, '#d0b040');                            // crest stud
+      },
+      extra: g2 => { g2.fillStyle = '#5a3f28'; g2.beginPath(); g2.moveTo(46, 92); g2.quadraticCurveTo(64, 122, 82, 92); g2.quadraticCurveTo(64, 104, 46, 92); g2.fill(); }, // beard
+    }));
+
+    makeArtWH('pt_wren', 128, 128, g => paintPortrait(g, {
+      bg0: '#161f16', bg1: '#26361f', glow: 'rgba(150,180,110,0.45)',
+      skin: '#d6a476', skinLight: '#eec39a', skinShadow: '#a6754e', blush: '#cc6a4a',
+      eye: '#6a8f4a', lid: '#6a4a30', brow: '#4a3420', mouth: '#8a5040', rim: '#e0f0c0', smile: 1, brY: -1,
+      shoulders: g2 => { g2.fillStyle = '#3c5c34'; g2.fillRect(6, 104, 116, 24); g2.fillStyle = '#2e4828'; g2.fillRect(6, 104, 116, 5); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(34, 60); gg.quadraticCurveTo(30, 96, 44, 110); gg.lineTo(52, 104); gg.quadraticCurveTo(40, 84, 44, 56); gg.fill(); gg.beginPath(); gg.moveTo(94, 60); gg.quadraticCurveTo(98, 96, 84, 110); gg.lineTo(76, 104); gg.quadraticCurveTo(88, 84, 84, 56); gg.fill(); }, '#6a4a28', '#4a3018', '#8a6636'),
+      head: g2 => {
+        // green hood
+        g2.fillStyle = '#3c5c34';
+        g2.beginPath(); g2.moveTo(28, 66); g2.bezierCurveTo(24, 14, 104, 14, 100, 66); g2.lineTo(88, 66); g2.bezierCurveTo(90, 34, 38, 34, 40, 66); g2.closePath(); g2.fill();
+        g2.fillStyle = '#4d7042'; g2.beginPath(); g2.moveTo(30, 58); g2.bezierCurveTo(26, 14, 102, 14, 98, 58); g2.lineTo(90, 56); g2.bezierCurveTo(92, 26, 36, 26, 38, 56); g2.closePath(); g2.fill();
+        g2.fillStyle = '#2e4828'; g2.beginPath(); g2.moveTo(38, 56); g2.quadraticCurveTo(64, 64, 90, 56); g2.lineTo(90, 50); g2.quadraticCurveTo(64, 58, 38, 50); g2.fill(); // inner-hood shadow at the hairline
+        g2.fillStyle = '#d0b040'; g2.beginPath(); g2.moveTo(94, 18); g2.lineTo(106, 42); g2.lineTo(98, 40); g2.closePath(); g2.fill(); // feather
+      },
+    }));
+
+    makeArtWH('pt_serena', 128, 128, g => paintPortrait(g, {
+      bg0: '#241f30', bg1: '#3a3552', glow: 'rgba(150,150,220,0.5)',
+      skin: '#eec19a', skinLight: '#fadcbb', skinShadow: '#c2916a', blush: '#e07a68',
+      eye: '#5a86c8', lid: '#b08850', brow: '#a07838', mouth: '#c26a5a', rim: '#fff0d0', smile: 1,
+      shoulders: g2 => { g2.fillStyle = '#eae5da'; g2.fillRect(8, 104, 112, 24); g2.fillStyle = '#d0c9ba'; g2.fillRect(8, 104, 112, 5); g2.fillStyle = '#c9a227'; g2.fillRect(56, 108, 16, 20); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(30, 52); gg.bezierCurveTo(20, 100, 34, 122, 46, 118); gg.lineTo(52, 104); gg.quadraticCurveTo(36, 88, 40, 50); gg.fill(); gg.beginPath(); gg.moveTo(98, 52); gg.bezierCurveTo(108, 100, 94, 122, 82, 118); gg.lineTo(76, 104); gg.quadraticCurveTo(92, 88, 88, 50); gg.fill(); gg.beginPath(); gg.ellipse(64, 44, 34, 22, 0, Math.PI, 0); gg.fill(); }, '#d9c26a', '#b89a44', '#f0dc94'),
+      head: g2 => {
+        g2.strokeStyle = '#c9a227'; g2.lineWidth = 4; g2.lineCap = 'round';   // circlet
+        g2.beginPath(); g2.moveTo(36, 50); g2.quadraticCurveTo(64, 40, 92, 50); g2.stroke();
+        g2.strokeStyle = '#f0dc94'; g2.lineWidth = 1.5; g2.beginPath(); g2.moveTo(36, 49); g2.quadraticCurveTo(64, 39, 92, 49); g2.stroke();
+        disc(g2, 64, 44, 4, '#6fb0e8'); disc(g2, 62.5, 42.5, 1.5, '#d8f0ff');
+      },
+    }));
+
+    makeArtWH('pt_malwick', 128, 128, g => paintPortrait(g, {
+      bg0: '#1e1a2c', bg1: '#332a4c', glow: 'rgba(150,110,200,0.5)',
+      skin: '#dcbc98', skinLight: '#f2d6b4', skinShadow: '#ab8a66', blush: '#c07858',
+      eye: '#7a5aa8', lid: '#8a8f98', brow: '#c4c8d0', mouth: '#9a6858', brY: 1,
+      shoulders: g2 => { g2.fillStyle = '#4a3a6a'; g2.fillRect(8, 104, 112, 24); g2.fillStyle = '#372a52'; g2.fillRect(8, 104, 112, 5); g2.fillStyle = '#6a4a98'; g2.fillRect(20, 110, 88, 2); },
+      extra: g2 => {
+        // long grey beard over the mouth/chin
+        g2.fillStyle = '#c4c8d0';
+        g2.beginPath(); g2.moveTo(46, 88); g2.quadraticCurveTo(48, 124, 64, 128); g2.quadraticCurveTo(80, 124, 82, 88); g2.quadraticCurveTo(64, 100, 46, 88); g2.fill();
+        g2.strokeStyle = '#a6abb5'; g2.lineWidth = 1.4;
+        for (let i = 0; i < 6; i++) { g2.beginPath(); g2.moveTo(52 + i * 4, 92); g2.lineTo(53 + i * 4, 120); g2.stroke(); }
+        g2.fillStyle = '#e4e8ee'; g2.beginPath(); g2.moveTo(58, 90); g2.quadraticCurveTo(64, 96, 70, 90); g2.quadraticCurveTo(64, 92, 58, 90); g2.fill(); // moustache
+      },
+      head: g2 => {
+        // tall wizard hat, slightly slumped
+        const hg = g2.createLinearGradient(20, 0, 80, 46); hg.addColorStop(0, '#4a3078'); hg.addColorStop(1, '#6a4a98');
+        g2.fillStyle = hg;
+        g2.beginPath(); g2.moveTo(28, 50); g2.quadraticCurveTo(30, 46, 96, 50); g2.quadraticCurveTo(88, 44, 74, 4); g2.quadraticCurveTo(70, -2, 60, 8); g2.quadraticCurveTo(40, 30, 28, 50); g2.fill();
+        g2.fillStyle = '#372457'; g2.beginPath(); g2.ellipse(62, 50, 40, 8, 0, 0, Math.PI * 2); g2.fill();
+        g2.fillStyle = '#5a4088'; g2.fillRect(24, 46, 76, 6);
+        // gold stars
+        g2.fillStyle = '#f0d060';
+        [[54, 20, 3], [66, 34, 2], [46, 36, 2]].forEach(([x, y, r]) => { g2.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 0.8; g2.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g2.closePath(); g2.fill(); });
+      },
+    }));
+
+    // -- villager dialogue faces (face_<id>) --
+    makeArtWH('face_maren', 128, 128, g => paintPortrait(g, {
+      bg0: '#1c2420', bg1: '#33443a', glow: 'rgba(150,190,160,0.4)',
+      skin: '#e6c4a2', skinLight: '#f6dcc0', skinShadow: '#bd977a', blush: '#cc8878',
+      eye: '#6a8a70', lid: '#b0a890', brow: '#d8d8d0', mouth: '#b07868', smile: 1, brY: 1,
+      shoulders: g2 => { g2.fillStyle = '#4a6a52'; g2.fillRect(6, 104, 116, 24); g2.fillStyle = '#39543f'; g2.fillRect(6, 104, 116, 5); g2.fillStyle = '#c9a227'; disc(g2, 64, 112, 4, '#c9a227'); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(28, 54); gg.bezierCurveTo(18, 104, 36, 120, 48, 116); gg.lineTo(52, 100); gg.quadraticCurveTo(38, 84, 42, 50); gg.fill(); gg.beginPath(); gg.moveTo(100, 54); gg.bezierCurveTo(110, 104, 92, 120, 80, 116); gg.lineTo(76, 100); gg.quadraticCurveTo(90, 84, 86, 50); gg.fill(); gg.beginPath(); gg.ellipse(64, 46, 36, 22, 0, Math.PI, 0); gg.fill(); }, '#e0e0da', '#c2c2ba', '#f4f4ee'),
+      head: g2 => { g2.fillStyle = '#4a6a52'; g2.beginPath(); g2.moveTo(26, 60); g2.bezierCurveTo(22, 20, 106, 20, 102, 60); g2.lineTo(94, 58); g2.bezierCurveTo(96, 32, 32, 32, 34, 58); g2.closePath(); g2.fill(); },
+      extra: g2 => { g2.save(); g2.globalAlpha = 0.3; g2.strokeStyle = '#a6866a'; g2.lineWidth = 1.4; g2.lineCap = 'round'; // age lines
+        g2.beginPath(); g2.moveTo(44, 66); g2.lineTo(48, 68); g2.moveTo(80, 66); g2.lineTo(84, 68); g2.moveTo(50, 92); g2.quadraticCurveTo(64, 96, 78, 92); g2.stroke(); g2.restore(); },
+    }));
+
+    makeArtWH('face_bram', 128, 128, g => paintPortrait(g, {
+      bg0: '#2a1c18', bg1: '#48342a', glow: 'rgba(220,140,80,0.4)',
+      skin: '#cf9a6e', skinLight: '#ecbb8c', skinShadow: '#9c6c46', blush: '#c25e3e',
+      eye: '#5a4a38', lid: '#5a3a22', brow: '#2e1c12', mouth: '#7a4030', smile: 1,
+      shoulders: g2 => { g2.fillStyle = '#4a3527'; g2.fillRect(4, 102, 120, 26); g2.fillStyle = '#8a5a2a'; g2.fillRect(50, 104, 28, 24); g2.fillStyle = '#3a2a1a'; g2.fillRect(4, 102, 120, 5); },
+      hair: g2 => { g2.fillStyle = '#2e1c12'; g2.beginPath(); g2.moveTo(32, 56); g2.quadraticCurveTo(30, 40, 46, 40); g2.quadraticCurveTo(64, 34, 82, 40); g2.quadraticCurveTo(98, 40, 96, 56); g2.quadraticCurveTo(80, 48, 64, 48); g2.quadraticCurveTo(48, 48, 32, 56); g2.fill(); },
+      extra: g2 => {
+        // big black beard
+        g2.fillStyle = '#2e1c12';
+        g2.beginPath(); g2.moveTo(38, 80); g2.quadraticCurveTo(34, 126, 64, 128); g2.quadraticCurveTo(94, 126, 90, 80); g2.quadraticCurveTo(64, 96, 38, 80); g2.fill();
+        g2.strokeStyle = '#1a0f08'; g2.lineWidth = 1.4;
+        for (let i = 0; i < 7; i++) { g2.beginPath(); g2.moveTo(46 + i * 5, 88); g2.lineTo(47 + i * 5, 122); g2.stroke(); }
+        g2.fillStyle = '#2e1c12'; g2.fillRect(54, 88, 20, 8); // moustache
+        g2.save(); g2.globalAlpha = 0.25; disc(g2, 82, 78, 6, '#4a4a4a'); g2.restore(); // soot smudge
+      },
+    }));
+
+    makeArtWH('face_tilly', 128, 128, g => paintPortrait(g, {
+      bg0: '#2a2418', bg1: '#4a4228', glow: 'rgba(240,210,120,0.45)',
+      skin: '#f2cba0', skinLight: '#ffe4c2', skinShadow: '#cf9e72', blush: '#f07a68',
+      eye: '#4a86c8', lid: '#c89858', brow: '#c88838', mouth: '#e07868', smile: 1, brY: -2,
+      shoulders: g2 => { g2.fillStyle = '#b05a7a'; g2.fillRect(10, 106, 108, 22); g2.fillStyle = '#8e4460'; g2.fillRect(10, 106, 108, 5); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.ellipse(64, 46, 34, 22, 0, Math.PI, 0); gg.fill(); gg.beginPath(); gg.ellipse(30, 74, 12, 18, 0, 0, Math.PI * 2); gg.fill(); gg.beginPath(); gg.ellipse(98, 74, 12, 18, 0, 0, Math.PI * 2); gg.fill(); }, '#e0b040', '#c08820', '#f8d868'),
+      extra: g2 => { g2.fillStyle = '#d88850'; g2.save(); g2.globalAlpha = 0.6; // freckles
+        [[46, 84], [50, 88], [54, 85], [78, 85], [82, 88], [86, 84]].forEach(([x, y]) => disc(g2, x, y, 1.3, '#c87848')); g2.restore();
+        g2.fillStyle = '#f8d868'; g2.fillRect(24, 60, 6, 4); g2.fillRect(98, 60, 6, 4); }, // ribbon bits
+    }));
+
+    makeArtWH('face_odo', 128, 128, g => paintPortrait(g, {
+      bg0: '#241f2a', bg1: '#3e3546', glow: 'rgba(180,150,120,0.4)',
+      skin: '#d8a878', skinLight: '#eec69a', skinShadow: '#a87c52', blush: '#c06848',
+      eye: '#7a6a4a', lid: '#7a5638', brow: '#4a3420', mouth: '#8a5040', smile: 1,
+      shoulders: g2 => { g2.fillStyle = '#6a4a8a'; g2.fillRect(8, 104, 112, 24); g2.fillStyle = '#523970'; g2.fillRect(8, 104, 112, 5); g2.fillStyle = '#d0b040'; disc(g2, 64, 114, 3, '#d0b040'); },
+      hair: g2 => { g2.fillStyle = '#5a4028'; g2.beginPath(); g2.moveTo(34, 58); g2.quadraticCurveTo(38, 48, 50, 50); g2.lineTo(48, 58); g2.fill(); g2.beginPath(); g2.moveTo(94, 58); g2.quadraticCurveTo(90, 48, 78, 50); g2.lineTo(80, 58); g2.fill(); },
+      head: g2 => {
+        g2.fillStyle = '#5a2a3a'; g2.beginPath(); g2.moveTo(28, 54); g2.quadraticCurveTo(30, 34, 64, 32); g2.quadraticCurveTo(98, 34, 100, 54); g2.quadraticCurveTo(64, 46, 28, 54); g2.fill(); // cap
+        g2.fillStyle = '#6e3648'; g2.beginPath(); g2.ellipse(64, 54, 38, 8, 0, 0, Math.PI * 2); g2.fill();
+        g2.fillStyle = '#e0c050'; g2.beginPath(); g2.moveTo(90, 30); g2.lineTo(108, 48); g2.lineTo(94, 46); g2.closePath(); g2.fill(); // feather
+      },
+      extra: g2 => { g2.strokeStyle = '#4a3420'; g2.lineWidth = 2.4; g2.lineCap = 'round'; // thin moustache
+        g2.beginPath(); g2.moveTo(64, 92); g2.quadraticCurveTo(54, 90, 48, 94); g2.moveTo(64, 92); g2.quadraticCurveTo(74, 90, 80, 94); g2.stroke(); },
+    }));
+
+    makeArtWH('face_hilda', 128, 128, g => paintPortrait(g, {
+      bg0: '#2a2018', bg1: '#463628', glow: 'rgba(220,170,110,0.4)',
+      skin: '#eab890', skinLight: '#f8d4ac', skinShadow: '#c28a62', blush: '#e07858',
+      eye: '#7a5a3a', lid: '#b07848', brow: '#8a5828', mouth: '#c26858', smile: 1,
+      shoulders: g2 => { g2.fillStyle = '#7a4a3a'; g2.fillRect(6, 104, 116, 24); g2.fillStyle = '#e8e4da'; g2.fillRect(46, 104, 36, 24); g2.fillStyle = '#5e382c'; g2.fillRect(6, 104, 116, 5); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(30, 60); gg.quadraticCurveTo(24, 40, 64, 36); gg.quadraticCurveTo(104, 40, 98, 60); gg.quadraticCurveTo(64, 50, 30, 60); gg.fill(); gg.beginPath(); gg.ellipse(64, 34, 16, 12, 0, 0, Math.PI * 2); gg.fill(); }, '#a8763a', '#89592a', '#c89658'),
+    }));
+
+    makeArtWH('face_marta', 128, 128, g => paintPortrait(g, {
+      bg0: '#1e2420', bg1: '#34423a', glow: 'rgba(160,180,150,0.35)',
+      skin: '#cc9c72', skinLight: '#e6bd92', skinShadow: '#9a6e4a', blush: '#bc6244',
+      eye: '#8a8a6a', lid: '#6a4a30', brow: '#3a2a1a', mouth: '#7a4838', brY: 1,
+      shoulders: g2 => { g2.fillStyle = '#5a4a38'; g2.fillRect(6, 104, 116, 24); g2.fillStyle = '#7a6248'; g2.fillRect(6, 104, 116, 8); g2.fillStyle = '#3a2e20'; g2.fillRect(6, 112, 116, 3); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(32, 58); gg.quadraticCurveTo(28, 84, 40, 104); gg.lineTo(50, 100); gg.quadraticCurveTo(40, 82, 44, 56); gg.fill(); }, '#4a3826', '#33261a', '#665038'),
+      head: g2 => { // fur-trimmed hood
+        g2.fillStyle = '#7a6248'; g2.beginPath(); g2.moveTo(24, 64); g2.bezierCurveTo(20, 14, 108, 14, 104, 64); g2.lineTo(94, 62); g2.bezierCurveTo(96, 30, 32, 30, 34, 62); g2.closePath(); g2.fill();
+        g2.strokeStyle = '#c4b498'; g2.lineWidth = 7; g2.lineCap = 'round'; g2.beginPath(); g2.moveTo(30, 58); g2.bezierCurveTo(26, 20, 102, 20, 98, 58); g2.stroke();
+        g2.save(); g2.globalAlpha = 0.5; g2.strokeStyle = '#8a7a5e'; g2.lineWidth = 2; for (let i = 0; i < 12; i++) { const a = Math.PI + i * Math.PI / 11; g2.beginPath(); g2.moveTo(64 + Math.cos(a) * 40, 40 + Math.sin(a) * 30); g2.lineTo(64 + Math.cos(a) * 46, 40 + Math.sin(a) * 34); g2.stroke(); } g2.restore();
+      },
+      extra: g2 => { g2.strokeStyle = '#a86a56'; g2.lineWidth = 2; g2.beginPath(); g2.moveTo(82, 60); g2.lineTo(86, 78); g2.stroke(); }, // scar
+    }));
+
+    makeArtWH('face_xarthax', 128, 128, g => paintPortrait(g, {
+      bg0: '#201a30', bg1: '#3a2c5a', glow: 'rgba(120,200,180,0.45)',
+      skin: '#dcbc98', skinLight: '#f2d6b4', skinShadow: '#a88a66', blush: '#c06858',
+      eye: '#3ecfb0', lid: '#8a8f98', brow: '#dadfe4', mouth: '#9a6858', smile: 1, brY: -2,
+      shoulders: g2 => { g2.fillStyle = '#3a2a5a'; g2.fillRect(8, 104, 112, 24); g2.fillStyle = '#2a1e46'; g2.fillRect(8, 104, 112, 5); g2.fillStyle = '#d0b040'; [[30, 116], [64, 120], [98, 116]].forEach(([x, y]) => disc(g2, x, y, 2, '#d0b040')); },
+      hair: g2 => hairMass(g2, gg => { gg.beginPath(); gg.moveTo(28, 56); gg.quadraticCurveTo(10, 40, 24, 22); gg.quadraticCurveTo(40, 34, 44, 50); gg.fill(); gg.beginPath(); gg.moveTo(100, 56); gg.quadraticCurveTo(118, 40, 104, 22); gg.quadraticCurveTo(88, 34, 84, 50); gg.fill(); gg.beginPath(); gg.moveTo(40, 44); gg.quadraticCurveTo(64, 20, 88, 44); gg.quadraticCurveTo(64, 34, 40, 44); gg.fill(); }, '#dadfe4', '#b8bec6', '#f2f4f8'),
+      head: g2 => { // brass goggles pushed up on the forehead
+        g2.strokeStyle = '#8a6a2a'; g2.lineWidth = 3; g2.beginPath(); g2.moveTo(40, 52); g2.lineTo(88, 52); g2.stroke();
+        g2.fillStyle = '#b8912a'; disc(g2, 48, 52, 8, '#b8912a'); disc(g2, 80, 52, 8, '#b8912a');
+        g2.fillStyle = '#3ecfb0'; disc(g2, 48, 52, 5, '#2a8a78'); disc(g2, 80, 52, 5, '#2a8a78');
+        g2.fillStyle = '#7effe0'; disc(g2, 46, 50, 1.6, '#7effe0'); disc(g2, 78, 50, 1.6, '#7effe0');
+      },
+    }));
 
     // -- item icons, 32px --
     makeArt('it_sword', g => {

@@ -47,10 +47,13 @@ player stares at in the HUD and every conversation. Then monster billboards.
 For anything without a real asset yet, lift the procedural quality. Each is a
 small ticket:
 
-1. **Portrait painter overhaul.** Current portraits are flat shapes. Add: soft
-   shading (radial highlight + shadow side), 2-3 tone ramps per material,
-   rim light, a painted vignette bg per class. Same technique, 3× the passes —
-   like the wall-texture upgrade did for surfaces. Biggest bang for buck.
+1. ✅ **Portrait painter overhaul — DONE.** `paintPortrait` kit in BootScene
+   (128px): gradient-shaded face volume, detailed eyes (sclera/iris/pupil/
+   catchlight/lid), rim light, brows, nose shading, `hairMass` strand texture,
+   per-character vignette bg. Repainted all 4 party `pt_*` portraits + added
+   dedicated `face_<id>` dialogue portraits for all 7 villagers (Maren, Bram,
+   Tilly, Odo, Hilda, Marta, Xarthax). Real PNGs via the manifest still override
+   these; the painters are now a solid fallback, not blobs.
 2. **Billboard shading.** Give 3D billboards a subtle vertical gradient (lit top,
    shadowed base) + a soft contact-shadow decal on the ground under each. Cheap,
    huge grounding effect.
