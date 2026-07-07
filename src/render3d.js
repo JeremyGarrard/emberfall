@@ -53,6 +53,7 @@ const R3D = {
     this.buildWater();
     this.buildWalls();
     this.buildRoofs();
+    this.buildBridges();
 
     FX.init(this.scene);
 
@@ -185,6 +186,41 @@ const R3D = {
         }
       }
     }
+  },
+
+  buildBridges() {
+    const cells = this.world.bridges;
+    if (!cells || !cells.length) return;
+    const deckH = this.world.bridgeH || 0.06;
+    const plank = new THREE.MeshLambertMaterial({ map: this.wallTex('plankwall') });
+    const wood = new THREE.MeshLambertMaterial({ color: 0x6b4a2e });
+    const grp = new THREE.Group();
+    const xs = cells.map(c => c[0]), ys = cells.map(c => c[1]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    for (const [x, y] of cells) {
+      // plank deck
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.14, 1.02), plank);
+      deck.position.set(x + 0.5, deckH, y + 0.5);
+      grp.add(deck);
+      // support posts plunging to the riverbed
+      for (const [ox, oy] of [[0.12, 0.12], [0.88, 0.88]]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), wood);
+        post.position.set(x + ox, deckH - 0.55, y + oy);
+        grp.add(post);
+      }
+    }
+    // railings along the two long edges of the span
+    const horiz = (maxX - minX) >= (maxY - minY);
+    for (const side of [0, 1]) {
+      const rail = new THREE.Mesh(
+        horiz ? new THREE.BoxGeometry((maxX - minX) + 1.1, 0.32, 0.1)
+              : new THREE.BoxGeometry(0.1, 0.32, (maxY - minY) + 1.1), wood);
+      if (horiz) rail.position.set((minX + maxX) / 2 + 0.5, deckH + 0.28, (side ? maxY + 0.98 : minY + 0.02));
+      else rail.position.set((side ? maxX + 0.98 : minX + 0.02), deckH + 0.28, (minY + maxY) / 2 + 0.5);
+      grp.add(rail);
+    }
+    this.scene.add(grp);
   },
 
   buildRoofs() {

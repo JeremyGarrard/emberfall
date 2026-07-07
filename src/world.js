@@ -9,6 +9,7 @@ const T_ROCK = 5, T_FENCE = 6, T_TIMBER = 7, T_PLANK = 8, T_STONE = 9;
 const T_DOOR = 10, T_TIMBER_WIN = 11, T_STONE_WIN = 12, T_PLANK_WIN = 13;
 const T_SIGN_TAVERN = 14, T_SIGN_SMITH = 15, T_SIGN_TRADE = 16, T_BANNER = 17, T_CHIMNEY = 18;
 const MAP_W = 96, MAP_H = 72;
+const BRIDGE_H = 0.06; // plank-deck height above the water line
 const START = { x: 10.5, y: 35.5 }; // the village green
 
 // Emberfall village, hand-authored (Harmondale-flavored: walled village, one
@@ -1410,6 +1411,7 @@ class WorldScene extends Phaser.Scene {
         x2: VILLAGE.x1 + b.x2, y2: VILLAGE.y1 + b.y2,
         h: 1.25, color: b.color,
       })),
+      bridges: this.bridgeCells, bridgeH: BRIDGE_H,
     });
     R3D.syncSize(this.game.canvas);
     this.scale.on('resize', () => R3D.syncSize(this.game.canvas));
@@ -1627,15 +1629,20 @@ class WorldScene extends Phaser.Scene {
     }
 
     // the east road: a clear corridor from the village gate to Eastmarch's,
-    // fording the river and winding through the hills (stops at the camp's west wall)
+    // bridging the river and winding through the hills (stops at the camp's west wall).
+    // River cells under the road keep their water; a plank deck (bridgeSet) spans
+    // them so the river flows on unbroken beneath the crossing.
     const roadY = VILLAGE.y1 + 8; // the gate row
+    this.bridgeSet = new Set();
     for (let x = VILLAGE.x2 + 1; x < SETTLEMENTS[1].x1 && x < MAP_W - 1; x++) {
       for (let y = roadY - 1; y <= roadY + 1; y++) {
         const t = this.map[y][x];
-        if (y === roadY) this.map[y][x] = T_DIRT;
+        if (t === T_WATER) this.bridgeSet.add(x + ',' + y); // deck over the river; water stays
+        else if (y === roadY) this.map[y][x] = T_DIRT;
         else if (t !== T_GRASS && t !== T_COBBLE) this.map[y][x] = T_GRASS;
       }
     }
+    this.bridgeCells = [...this.bridgeSet].map(s => s.split(',').map(Number));
 
     this.buildHeights();
   }
@@ -1874,8 +1881,11 @@ class WorldScene extends Phaser.Scene {
 
   entityAt(gx, gy) { return this.entities.find(e => e.gx === gx && e.gy === gy); }
 
+  onBridge(x, y) { return this.bridgeSet && this.bridgeSet.has(Math.floor(x) + ',' + Math.floor(y)); }
+
   walkableAt(gx, gy, allowWater) {
     if (gx < 0 || gy < 0 || gx >= MAP_W || gy >= MAP_H) return false;
+    if (this.bridgeSet && this.bridgeSet.has(gx + ',' + gy)) return true; // plank deck
     const t = this.map[gy][gx];
     return t <= T_COBBLE || t === T_WOOD || (allowWater && t === T_WATER);
   }
@@ -1890,7 +1900,8 @@ class WorldScene extends Phaser.Scene {
           this.walkableAt(Math.floor(x + r), Math.floor(y - r), aw) &&
           this.walkableAt(Math.floor(x - r), Math.floor(y + r), aw) &&
           this.walkableAt(Math.floor(x + r), Math.floor(y + r), aw))) return false;
-    if (!aw && this.slopeAt(x, y) > 0.85) return false; // too steep to climb
+    // the bridge deck is flat planks over a carved riverbed — skip the slope test
+    if (!aw && !this.onBridge(x, y) && this.slopeAt(x, y) > 0.85) return false;
     for (const e of this.entities) {
       if ((e.kind === 'fountain' || e.kind === 'villager') && Math.hypot(e.x - x, e.y - y) < 0.55) return false;
       if (e.kind === 'prop' && Math.hypot(e.x - x, e.y - y) < 0.45) return false;
@@ -2017,14 +2028,14 @@ class WorldScene extends Phaser.Scene {
         }
       }
 
-      // flight: R/X (or PgUp/PgDn, as in MM7) to rise and dive
+      // flight: R/X (or PgUp/PgDn, as in MM7) to rise and dive — soar high
       if (this.flying) {
         const rise = (k.R.isDown || k.PAGE_UP.isDown) ? 1 : 0;
         const dive = (k.X.isDown || k.PAGE_DOWN.isDown) ? 1 : 0;
-        let target = this.eyeZ + (rise - dive) * 1.3 * dt;
-        if (this.landing) target = this.eyeZ - 1.3 * dt;
+        let target = this.eyeZ + (rise - dive) * 3.2 * dt;
+        if (this.landing) target = this.eyeZ - 3.2 * dt;
         const minZ = this.minEyeAt(this.px, this.py);
-        this.eyeZ = clamp(target, Math.max(0.5, minZ), 2.1);
+        this.eyeZ = clamp(target, Math.max(0.5, minZ), 14); // clears the peaks with room to spare
         if (this.landing && minZ > 0.5 && this.eyeZ <= minZ + 0.02) {
           this.landing = false;
           this.toast('No solid ground below!');
@@ -2202,7 +2213,8 @@ class WorldScene extends Phaser.Scene {
       }
 
       // buff upkeep: regeneration ticks, water-walk sinking, HUD readout
-      this._onWater = (this.map[Math.floor(this.py)] || [])[Math.floor(this.px)] === T_WATER;
+      this._onWater = !this.onBridge(this.px, this.py) &&
+        (this.map[Math.floor(this.py)] || [])[Math.floor(this.px)] === T_WATER;
       if (time < this.buffs.regenUntil && time > this.regenNext) {
         this.regenNext = time + 2000;
         let healed = false;
@@ -2309,9 +2321,11 @@ class WorldScene extends Phaser.Scene {
       this.pickTarget();
     }
 
-    // render the 3D view (tread the water surface, not the riverbed)
-    const gz = this.terrainH(this.px, this.py);
-    this.camZ = (this._onWater ? Math.max(gz, -0.24) : gz) + this.eyeZ;
+    // render the 3D view (tread the bridge deck / water surface, not the riverbed)
+    const gz = this.onBridge(this.px, this.py) ? BRIDGE_H
+      : this._onWater ? Math.max(this.terrainH(this.px, this.py), -0.24)
+      : this.terrainH(this.px, this.py);
+    this.camZ = gz + this.eyeZ;
     R3D.render({
       px: this.px, py: this.py, camZ: this.camZ,
       angle: this.angle, pitch: this.pitch, time,
@@ -3368,7 +3382,7 @@ class WorldScene extends Phaser.Scene {
     };
     for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
       const t = this.map[y][x];
-      let c = colors[t];
+      let c = this.onBridge(x, y) ? '#8a6238' : colors[t]; // bridge planks over the river
       if (c === undefined) {
         // grass: shade by elevation so the hills show on the map
         const e = clamp(this.terrainH(x + 0.5, y + 0.5) / 4.5, 0, 1);

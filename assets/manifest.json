@@ -1,1 +1,13 @@
-[]
+[
+  { "key": "pt_roderick", "file": "portraits/pt_roderick.png" },
+  { "key": "pt_wren",     "file": "portraits/pt_wren.png" },
+  { "key": "pt_serena",   "file": "portraits/pt_serena.png" },
+  { "key": "pt_malwick",  "file": "portraits/pt_malwick.png" },
+  { "key": "face_maren",  "file": "faces/face_maren.png" },
+  { "key": "face_bram",   "file": "faces/face_bram.png" },
+  { "key": "face_tilly",  "file": "faces/face_tilly.png" },
+  { "key": "face_odo",    "file": "faces/face_odo.png" },
+  { "key": "face_hilda",  "file": "faces/face_hilda.png" },
+  { "key": "face_marta",  "file": "faces/face_marta.png" },
+  { "key": "face_xarthax","file": "faces/face_xarthax.png" }
+]

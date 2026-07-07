@@ -20,9 +20,13 @@ session). These tickets fill and polish.
 
 - **1.1 [S] Portrait painter overhaul.** Reshade `pt_*` + villager billboards:
   tone ramps, rim light, per-class vignette bg, 64→128px. GRAPHICS.md Track B1.
-- **1.2 [S] Produce & wire real faces.** Generate/collect 10 face PNGs
-  (`face_*`, `pt_*`), drop in `assets/`, list in `manifest.json`. Verify the
-  dialogue portrait + HUD swap. GRAPHICS.md Track A. (No code — content ticket.)
+- **1.2 ◐ Wire real faces — pipeline LIVE, art is baseline.** All 11 portraits
+  baked to PNG in `assets/portraits` + `assets/faces` and wired in
+  `manifest.json`; override verified (a test PNG replaced the painter in-game).
+  These are the *painted* faces exported as a starting point — **to actually
+  upgrade the look, generate art with the GRAPHICS.md prompts and overwrite the
+  matching PNG** (pure file swap, no code). Needs an image generator (not
+  available to the coding agent).
 - **1.3 [S] Billboard shading + contact shadows.** Vertical gradient + ground
   shadow decal under every billboard. GRAPHICS.md Track B2.
 - **1.4 [S] Final-composite color grade + vignette.** GRAPHICS.md Track B5.
