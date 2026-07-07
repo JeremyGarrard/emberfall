@@ -40,6 +40,11 @@ const Dialogue = {
     this.villager = entity;
     this.isOpen = true;
     this.head.textContent = entity.name;
+    // portrait: real face asset if one exists (face_<id> via assets/manifest.json),
+    // else the villager's billboard art
+    const face = document.getElementById('dlg-face');
+    const faceArt = (typeof ART !== 'undefined') && (ART['face_' + entity.villager.id] || ART[entity.villager.art]);
+    if (face && faceArt) face.src = faceArt.toDataURL();
     this.log.innerHTML = '';
     for (const m of entity.chat) {
       if (!m._hidden) this.addBubble(m.role === 'assistant' ? 'npc' : 'you', m.content);

@@ -5,6 +5,8 @@ three.js = 3D world underneath. Plain JS globals, **no build step, no npm instal
 no asset files** — every texture is painted in code at boot.
 
 Read `ARCHITECTURE.md` before touching code. Pick tasks from `BACKLOG.md`.
+Deep design specs live in `design/` (LORE, SPELLS, SPELLCRAFT, WORLD, PROGRESSION,
+GRAPHICS) — read the doc a ticket points to before starting that epic.
 
 ## Run & verify
 
@@ -20,6 +22,8 @@ Read `ARCHITECTURE.md` before touching code. Pick tasks from `BACKLOG.md`.
 ## Hard rules
 
 - **No external assets or CDNs.** New art = canvas painters in `BootScene.create()`.
+  Optional real PNGs may override painters via `assets/manifest.json` (key→file);
+  the game must always run with an empty manifest. See `assets/README.md`.
 - **World gen must stay deterministic**: generation code uses `gri()`/`grand()` (seeded),
   never `Math.random()`. Combat/loot randomness uses `Math.random()`/`ri()` freely.
 - Entity `uid`s come from seeded creation order — never reorder `buildEntities` spawn

@@ -44,6 +44,21 @@ BEFORE `buildHUD()` — refreshHUD writes to them) → panels.
   need `grounded`; can't land on water/steep slopes.
 - **Sanctuary**: `inVillage(x,y,pad)` — monsters never path inside.
 
+## Design docs (read before the matching epic)
+
+`design/LORE.md` (world/factions/campaign), `design/SPELLS.md` (72-spell compendium),
+`design/SPELLCRAFT.md` (invent-spells-by-talking LLM feature), `design/WORLD.md`
+(multi-zone + world-map architecture), `design/PROGRESSION.md` (towns/guilds/
+training), `design/GRAPHICS.md` (asset pipeline + procedural-polish tracks).
+
+## Real-asset overrides
+
+`assets/manifest.json` is a `[{key,file}]` list; `BootScene.preload` loads them and
+`applyAssetOverrides()` swaps the loaded image into `ART[key]` at native res before
+texture registration — overriding any painter (portraits, billboards, `face_<id>`,
+items). Empty/missing = painter fallback (must always work). Dialogue shows
+`face_<villagerId>` ‖ the villager's billboard.
+
 ## Extension recipes
 
 - **New spell**: add to `SPELLS` (school/name/cost/desc/icon/fx) + icon painter in Boot +

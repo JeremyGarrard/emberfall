@@ -102,6 +102,35 @@ function makeArtWH(key, w, h, draw) {
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
+  // Optional real-asset overrides: assets/manifest.json lists {key, file} pairs
+  // (e.g. {"key":"pt_roderick","file":"portraits/roderick.png"}). Anything it
+  // loads replaces the painted fallback at native resolution — for portraits,
+  // billboards, faces (face_<villagerId>), anything keyed in ART. No manifest,
+  // no assets: every painter below still works. See design/GRAPHICS.md.
+  preload() {
+    this.load.json('asset-manifest', 'assets/manifest.json');
+    this.load.once('filecomplete-json-asset-manifest', () => {
+      const man = this.cache.json.get('asset-manifest');
+      if (Array.isArray(man)) {
+        for (const { key, file } of man) this.load.image('asset_' + key, 'assets/' + file);
+      }
+    });
+    this.load.on('loaderror', f => console.warn('[assets] missing:', f.key));
+  }
+
+  applyAssetOverrides() {
+    const man = this.cache.json.get('asset-manifest');
+    if (!Array.isArray(man)) return;
+    for (const { key } of man) {
+      if (!this.textures.exists('asset_' + key)) continue;
+      const img = this.textures.get('asset_' + key).getSourceImage();
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      ART[key] = c; // native-res replacement; sprites/UI read art.width
+    }
+  }
+
   create() {
     const ell = (g, x, y, rx, ry, color) => {
       g.fillStyle = color; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill();
@@ -1024,6 +1053,8 @@ class BootScene extends Phaser.Scene {
       g.strokeStyle = '#c86a2a'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(5, 27); g.lineTo(27, 27); g.stroke();
     });
+
+    this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
     ['panel_ui', 'panel_hud', 'slot',
