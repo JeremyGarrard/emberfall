@@ -19,6 +19,8 @@ const Dialogue = {
     });
     document.getElementById('dlg-send').addEventListener('click', () => this.send());
     document.getElementById('dlg-close').addEventListener('click', () => this.close());
+    this.crow = document.getElementById('dlg-craft');
+    document.getElementById('dlg-craft-btn').addEventListener('click', () => this.attemptWeave());
     this.qrow = document.getElementById('dlg-quest');
     document.getElementById('dlg-quest-btn').addEventListener('click', () => {
       this.qrow.style.display = 'none';
@@ -65,6 +67,9 @@ const Dialogue = {
 
     // Odo runs a shop
     this.srow.style.display = entity.villager.id === 'odo' ? 'flex' : 'none';
+
+    // spellcraft hook (Xarthax weaves described spells into the world)
+    this.crow.style.display = entity.villager.id === 'xarthax' ? 'flex' : 'none';
 
     // quest hooks (Bram's Lost Blade)
     this.qrow.style.display = 'none';
@@ -135,6 +140,64 @@ const Dialogue = {
       v.chat.push({ role: 'assistant', content: acc });
     } catch (err) {
       this.setBubble(bubble, `(${v.name} seems lost in thought — ${err.message})`);
+    }
+    this.busy = false;
+    if (this.isOpen) this.input.focus();
+  },
+
+  // Xarthax's weaving: conversation → strict-JSON LLM call → validated spec →
+  // a real spell. The client-side validator is the authority (never eval).
+  async attemptWeave() {
+    if (this.busy || !this.isOpen || !this.villager) return;
+    this.busy = true;
+    const bubble = this.addBubble('npc', '…Xarthax closes his eyes and pulls at threads only he can see…');
+    const talk = this.villager.chat.filter(m => !m._hidden).slice(-10)
+      .map(m => ({ role: m.role, content: m.content }));
+    const messages = [{ role: 'system', content: craftSystemPrompt() }]
+      .concat(talk)
+      .concat([{ role: 'user', content: 'Weave the spell we discussed into the JSON now. Output only the JSON object.' }]);
+    let acc = '';
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      if (!res.ok) throw new Error('the shard is silent — is Ollama running?');
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          if (!line) continue;
+          let j; try { j = JSON.parse(line); } catch (e2) { continue; }
+          if (j.error) throw new Error(j.error);
+          if (j.delta) acc += j.delta;
+        }
+      }
+      const spec = extractJSON(acc);
+      if (!spec) throw new Error('the threads tangled — describe your idea once more, plainly');
+      const v2 = validateSpellSpec(spec);
+      if (!v2.ok) throw new Error('the weave rejects it: ' + v2.errors.join(', '));
+      spec.cost = v2.cost;
+      const price = v2.cost * 15;
+      if (GameData.gold < price) throw new Error(`such a weaving costs ${price} gold, and you carry but ${GameData.gold}`);
+      const learner = GameData.party.find(x => x.hp > 0 && HERO_SCHOOLS[x.name].includes(spec.school));
+      if (!learner) throw new Error(`none among you can hold ${SCHOOLS[spec.school] ? SCHOOLS[spec.school].name : spec.school} magic`);
+      GameData.gold -= price;
+      this.world.registerCraftedSpell(spec, learner);
+      const done = `It is DONE! "${spec.name}" — ${spec.desc || 'a new thread in the weave'}. ` +
+        `${learner.name} carries it now, ${spec.cost} mp a casting. That will be ${price} gold — already counted, naturally.`;
+      this.setBubble(bubble, done);
+      this.villager.chat.push({ role: 'assistant', content: done });
+    } catch (err) {
+      this.setBubble(bubble, `Xarthax frowns: "${err.message}."`);
     }
     this.busy = false;
     if (this.isOpen) this.input.focus();

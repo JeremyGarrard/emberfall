@@ -40,6 +40,10 @@
   #dlg-quest button { width: 100%; background: #4a3c14; color: #ffd75e; border: 1px solid #8a6f28;
                       font-family: monospace; font-size: clamp(13px, 1.3vw, 20px); padding: 10px; cursor: pointer; }
   #dlg-quest button:hover { background: #5f4d1a; }
+  #dlg-craft { display: none; padding: 6px 12px; border-top: 1px solid #39415c; }
+  #dlg-craft button { width: 100%; background: #3a2a5a; color: #d8c8f8; border: 1px solid #7a5fb5;
+                      font-family: monospace; font-size: clamp(13px, 1.3vw, 18px); padding: 10px; cursor: pointer; }
+  #dlg-craft button:hover { background: #4a3a70; }
   #dlg-shop { display: none; padding: 6px 12px; border-top: 1px solid #39415c; }
   #dlg-shop button { width: 100%; background: #23381a; color: #b8e89a; border: 1px solid #5a8a3a;
                      font-family: monospace; font-size: clamp(13px, 1.3vw, 18px); padding: 10px; cursor: pointer; }
@@ -60,6 +64,7 @@
     </div>
     <div id="dlg-log"></div>
     <div id="dlg-quest"><button id="dlg-quest-btn">&#9876; Accept quest: The Lost Blade</button></div>
+    <div id="dlg-craft"><button id="dlg-craft-btn">&#10022; Pull the golden thread (weave the spell)</button></div>
     <div id="dlg-shop"><button id="dlg-shop-btn">&#128176; Browse Odo's wares</button></div>
     <div id="dlg-row">
       <input id="dlg-input" autocomplete="off" spellcheck="false" placeholder="Say something... (Enter to send)">
@@ -72,6 +77,7 @@
 <script src="vendor/phaser.min.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="src/data.js"></script>
+<script src="src/spellcraft.js"></script>
 <script src="src/dialogue.js"></script>
 <script src="src/fx.js"></script>
 <script src="src/render3d.js"></script>

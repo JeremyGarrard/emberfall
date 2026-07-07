@@ -29,40 +29,31 @@ session). These tickets fill and polish.
 - **1.5 [S] Smooth-mode toggle.** Linear filter/mipmaps option for faces &
   billboards, crisp UI. GRAPHICS.md Track B4. Persist in save.
 
-## EPIC 2 — More spells → `design/SPELLS.md`
-72 spells specced; ~24 exist. Each sub-ticket = one school's remaining spells
-(entry + icon painter + castSkill case; scroll auto-generates).
+## EPIC 2 — More spells → `design/SPELLS.md`  ✅ LARGELY DONE
+72 specced; **59 now exist**. Core mechanics + Mind school + ~30 new spells
+shipped this session as **spec spells** (data-only, run by the executor).
 
-- **2.0 [M] Shared spell mechanics.** Build the reusable primitives SPELLS.md
-  lists: `summon`, `wallSpell`, `charm`, `sleep`, `projectileSpell`, `blink`,
-  `channel`, `aura`, and the status helpers (dodge/reflect/temp-maxHP/dmg-floor).
-  **Do this first** — most new spells depend on it. Each helper respected by ALL
-  damage paths (no formula forks).
-- **2.1 [S] Fire school** remaining (Ember Spray, Wall of Flame, Immolation,
-  Meteor Swarm, Phoenix Heart). 🔒2.0 for the last three.
-- **2.2 [S] Air** remaining. 🔒2.0
-- **2.3 [S] Water** remaining. 🔒2.0
-- **2.4 [S] Earth** remaining (Golem needs summon). 🔒2.0
-- **2.5 [S] Body** remaining. 🔒2.0 (temp-maxHP, dmg-floor)
-- **2.6 [S] Spirit** remaining (totem/summon). 🔒2.0
-- **2.7 [M] Mind school (NEW, 9th school).** Add to SCHOOLS/HERO_SCHOOLS + 8
-  spells (charm/sleep-heavy). 🔒2.0
-- **2.8 [S] Light** remaining. 🔒2.0
-- **2.9 [S] Dark** remaining (Plague on-death hop). 🔒2.0
+- **2.0 ✅ Shared spell mechanics.** summon (ally AI), charm, sleep, wall
+  (real 3D `R3D.addTempWall`), blink, totem/aura, projectile (dodgeable), +
+  status helpers dodge/reflect/ghost/deathless/hex, plague on-death hop. All in
+  `applyPrimitive`, respected by every damage path.
+- **2.1–2.9 ✅ mostly done.** All 9 schools have their headline spells incl. the
+  **Mind school** (Sleep, Charm Beast, Mass Hysteria, Mind Spike, Foresight,
+  Astral Recall). Remaining nice-to-haves (Phoenix Heart, Chain Storm, Deathless,
+  Soul Cage, Enslave Dying, Dawn) are optional polish — each is one spec entry now.
 
-## EPIC 3 — Spellcraft: invent spells by talking → `design/SPELLCRAFT.md`
-The marquee LLM feature. Primitive-composition, client-validated. 🔒 EPIC 2.0
-(shares the primitive executor).
+## EPIC 3 — Spellcraft: invent spells by talking → `design/SPELLCRAFT.md`  ✅ DONE
+The marquee LLM feature — **working end-to-end with the local LLM.**
 
-- **3.1 [M] Spec schema + validator + power-budget table.** Pure module, unit-
-  testable. No UI yet.
-- **3.2 [M] `applyEffects(spec, ctx)` executor** over EPIC-2.0 primitives; migrate
-  a couple of hand-authored spells onto it to prove parity.
-- **3.3 [S] craftedSpells persistence** + runtime SPELLS registration on load.
-  (Save-shape change → version bump.)
-- **3.4 [M] Xarthax NPC + Spellcraft dialogue mode.** LLM tool-call → spec →
-  validate → learn. 🔒3.1–3.3
-- **3.5 [S] Offline recipe-picker fallback** (same primitives, no LLM). 🔒3.1
+- **3.1 ✅ Spec schema + validator + power-budget** (`validateSpellSpec`, with
+  synonym normalization so small local models don't fail on capitalization).
+- **3.2 ✅ `applyEffects` executor** — the same one all spec spells use.
+- **3.3 ✅ craftedSpells persistence** + re-registration/re-paint on load.
+- **3.4 ✅ Xarthax NPC + weave flow.** Talk → "pull the golden thread" →
+  LLM→spec→validate→learn→pay gold. Verified: wove & cast "Frostshard" live.
+- **3.5 [S] Offline recipe-picker fallback** (same primitives, no LLM). Still open.
+- **3.6 [S] Polish:** spellbook page slightly crowds long names behind the icon;
+  bump text x. Xarthax could show the woven spec's stats before charging.
 
 ## EPIC 4 — Multiple maps + world map → `design/WORLD.md`
 Biggest architectural lift. Do the refactor before authoring many zones.
@@ -124,4 +115,5 @@ EPIC 1 (faces — immediate wow) → 2.0 (unblocks spells + spellcraft) → 2.x 
 Engine swap to three.js terrain · schools of magic + scrolls + buffs · FX system ·
 spell visuals · save/load (seeded, v2) · shop · quests #1 · MM7 UI · LLM villagers ·
 Fly/Water Walk · roofed village · Eastmarch camp · asset pipeline + dialogue
-portrait slot (this session).
+portrait slot · **spec-spell system + 9-school 59-spell roster (Mind school) +
+Spellcraft (invent spells by talking to Xarthax, LLM-woven & client-validated).**

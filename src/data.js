@@ -11,6 +11,7 @@ const SCHOOLS = {
   earth:   { name: 'Earth',    color: '#9a7a30' },
   body:    { name: 'Body',     color: '#d05050' },
   spirit:  { name: 'Spirit',   color: '#c8c8e8' },
+  mind:    { name: 'Mind',     color: '#e878b8' },
   light:   { name: 'Light',    color: '#f0d060' },
   dark:    { name: 'Dark',     color: '#9a50c8' },
 };
@@ -19,7 +20,7 @@ const SCHOOLS = {
 const HERO_SCHOOLS = {
   Roderick: ['martial'],
   Wren:     ['martial', 'air', 'water'],
-  Serena:   ['body', 'spirit', 'light'],
+  Serena:   ['body', 'spirit', 'mind', 'light'],
   Malwick:  ['fire', 'air', 'water', 'earth', 'dark'],
 };
 
@@ -59,6 +60,63 @@ const SPELLS = {
   drain:      { school: 'dark',   name: 'Vampiric Drain', cost: 6, desc: 'Steal a foe\'s life for the caster', icon: 'ic_drain', fx: { type: 'beam', color: '#c03060' } },
   curse:      { school: 'dark',   name: 'Curse',         cost: 7,  desc: 'Wither a foe\'s strength and speed', icon: 'ic_curse', fx: { type: 'bolt', color: '#9040c0' } },
   armageddon: { school: 'dark',   name: 'Armageddon',    cost: 30, desc: 'The sky falls on every monster in the vale — and singes you', icon: 'ic_arma', fx: { type: 'nova', color: '#ff4020', r: 7 } },
+};
+
+// ---- spec spells: pure data, executed by applyEffects (src/spellcraft.js).
+// icon 'rune_*' auto-paints a school-colored rune at boot. No castSkill case needed.
+Object.assign(SPELLS, {
+  // fire
+  emberspray:  { school: 'fire', name: 'Ember Spray', cost: 5, desc: 'A fan of embers scorches all in a line', icon: 'rune_emberspray', shape: 'line', len: 5, effects: [{ kind: 'damage', amount: 5 }, { kind: 'dot', perSec: 2, secs: 3 }], fx: { type: 'beam', color: '#ff9040' } },
+  immolation:  { school: 'fire', name: 'Immolation', cost: 12, desc: 'A pillar of flame burns around where you stand', icon: 'rune_immolation', shape: 'totem', r: 3, secs: 10, effects: [{ kind: 'damage', amount: 6 }], fx: { type: 'nova', color: '#ff5010', r: 3 } },
+  meteorswarm: { school: 'fire', name: 'Meteor Swarm', cost: 16, desc: 'Stones of fire rain around your target', icon: 'rune_meteorswarm', shape: 'target', range: 9, effects: [{ kind: 'spikes', count: 8, amount: 9, r: 4 }], fx: { type: 'bolt', color: '#ff6020' } },
+  // air
+  gust:        { school: 'air', name: 'Gust', cost: 3, desc: 'A hammer of wind hurls a foe away', icon: 'rune_gust', shape: 'target', range: 8, effects: [{ kind: 'knockback', amount: 3.5 }], fx: { type: 'bolt', color: '#c8e8ff' } },
+  haste:       { school: 'air', name: 'Haste', cost: 8, desc: 'The party moves like the wind awhile', icon: 'rune_haste', shape: 'self', effects: [{ kind: 'buff', stat: 'haste', secs: 20 }], fx: { type: 'self', color: '#b0e8ff' } },
+  blink:       { school: 'air', name: 'Blink', cost: 7, desc: 'Step between heartbeats to where you gaze', icon: 'rune_blink', shape: 'self', effects: [{ kind: 'blink', dist: 6 }], fx: { type: 'self', color: '#d8f0ff' } },
+  stormcall:   { school: 'air', name: 'Stormcall', cost: 11, desc: 'Thunder answers, striking all around you', icon: 'rune_stormcall', shape: 'nova', r: 4, effects: [{ kind: 'damage', amount: 7 }, { kind: 'control', c: 'daze', secs: 2 }], fx: { type: 'nova', color: '#a0d0ff', r: 4 } },
+  // water
+  cleansingrain: { school: 'water', name: 'Cleansing Rain', cost: 6, desc: 'Cool rain soothes the whole party', icon: 'rune_cleansingrain', shape: 'self', effects: [{ kind: 'heal', amount: 7, party: true }], fx: { type: 'self', color: '#70b8e8' } },
+  icelance:    { school: 'water', name: 'Ice Lance', cost: 9, desc: 'A spear of ice pierces everything in a line', icon: 'rune_icelance', shape: 'line', len: 7, effects: [{ kind: 'damage', amount: 8 }, { kind: 'control', c: 'slow', secs: 2 }], fx: { type: 'beam', color: '#a0e0ff' } },
+  flashfreeze: { school: 'water', name: 'Flash Freeze', cost: 11, desc: 'One foe becomes a statue of brittle ice', icon: 'rune_flashfreeze', shape: 'target', range: 8, effects: [{ kind: 'control', c: 'sleep', secs: 4 }, { kind: 'hex', amount: 3, secs: 6 }], fx: { type: 'bolt', color: '#d8f4ff' } },
+  // earth
+  tremor:      { school: 'earth', name: 'Tremor', cost: 5, desc: 'The ground bucks beneath nearby foes', icon: 'rune_tremor', shape: 'nova', r: 3, effects: [{ kind: 'damage', amount: 4 }, { kind: 'control', c: 'daze', secs: 1.5 }], fx: { type: 'nova', color: '#c0a060', r: 3 } },
+  bulwark:     { school: 'earth', name: 'Bulwark', cost: 11, desc: 'A wall of stone rises before you', icon: 'rune_bulwark', shape: 'self', effects: [{ kind: 'wall', len: 3, secs: 12 }], fx: { type: 'self', color: '#b0985a' } },
+  earthspikes: { school: 'earth', name: 'Earthspike Field', cost: 13, desc: 'Stone fangs erupt around your target', icon: 'rune_earthspikes', shape: 'target', range: 8, effects: [{ kind: 'spikes', count: 8, amount: 8, r: 4 }], fx: { type: 'bolt', color: '#9a7a30' } },
+  golem:       { school: 'earth', name: 'Summon Golem', cost: 16, desc: 'A servant of stone rises to fight for you', icon: 'rune_golem', shape: 'self', effects: [{ kind: 'summon', type: 'golem', secs: 30 }], fx: { type: 'self', color: '#8a8f98' } },
+  // body
+  stimulant:   { school: 'body', name: 'Stimulant', cost: 6, desc: 'Hearts hammer: the party heals and quickens', icon: 'rune_stimulant', shape: 'self', effects: [{ kind: 'heal', amount: 6, party: true }, { kind: 'buff', stat: 'haste', secs: 6 }], fx: { type: 'self', color: '#ff9080' } },
+  vigor:       { school: 'body', name: 'Vigor', cost: 9, desc: 'Mend flesh and harden it against the next blow', icon: 'rune_vigor', shape: 'self', effects: [{ kind: 'heal', amount: 14 }, { kind: 'buff', stat: 'def', secs: 10 }], fx: { type: 'self', color: '#e87060' } },
+  secondwind:  { school: 'body', name: 'Second Wind', cost: 13, desc: 'The whole party rallies, wounds and weariness lifting', icon: 'rune_secondwind', shape: 'self', effects: [{ kind: 'heal', amount: 10, party: true }, { kind: 'mpgain', amount: 5, hpcost: 0 }], fx: { type: 'self', color: '#a0ffb8' } },
+  // spirit
+  ghostblades: { school: 'spirit', name: 'Ghost Blades', cost: 9, desc: "The party's blows carry spectral edges awhile", icon: 'rune_ghostblades', shape: 'self', effects: [{ kind: 'buff', stat: 'ghost', secs: 15 }], fx: { type: 'self', color: '#d8d8ff' } },
+  ancestorswatch: { school: 'spirit', name: "Ancestor's Watch", cost: 12, desc: 'A spirit totem slows foes who dare approach', icon: 'rune_ancestorswatch', shape: 'totem', r: 4, secs: 20, effects: [{ kind: 'control', c: 'slow', secs: 2 }], fx: { type: 'self', color: '#c8c8e8' } },
+  spiritwisp:  { school: 'spirit', name: 'Spirit Wisp', cost: 10, desc: 'A hungry wisp hunts your enemies', icon: 'rune_spiritwisp', shape: 'self', effects: [{ kind: 'summon', type: 'wisp', secs: 20 }], fx: { type: 'self', color: '#e8e8ff' } },
+  // mind (Serena's new school)
+  foresight:   { school: 'mind', name: 'Foresight', cost: 8, desc: 'See each blow before it lands; some never do', icon: 'rune_foresight', shape: 'self', effects: [{ kind: 'buff', stat: 'dodge', secs: 20 }], fx: { type: 'self', color: '#f0a0d8' } },
+  sleep:       { school: 'mind', name: 'Sleep', cost: 9, desc: 'Nearby foes drop where they stand, dreaming', icon: 'rune_sleep', shape: 'nova', r: 4, effects: [{ kind: 'control', c: 'sleep', secs: 6 }], fx: { type: 'nova', color: '#e878b8', r: 4 } },
+  charmbeast:  { school: 'mind', name: 'Charm Beast', cost: 10, desc: 'One beast forgets whose side it was on', icon: 'rune_charmbeast', shape: 'target', range: 8, effects: [{ kind: 'control', c: 'charm', secs: 15 }], fx: { type: 'bolt', color: '#f0a0d8' } },
+  mindspike:   { school: 'mind', name: 'Mind Spike', cost: 8, desc: 'A needle of pure will; no armor answers it', icon: 'rune_mindspike', shape: 'target', range: 9, effects: [{ kind: 'damage', amount: 9, true: true }], fx: { type: 'beam', color: '#ff90d0' } },
+  masshysteria: { school: 'mind', name: 'Mass Hysteria', cost: 16, desc: 'Nearby foes turn on one another in terror', icon: 'rune_masshysteria', shape: 'nova', r: 5, effects: [{ kind: 'control', c: 'charm', secs: 8 }], fx: { type: 'nova', color: '#e878b8', r: 5 } },
+  astralrecall: { school: 'mind', name: 'Astral Recall', cost: 12, desc: 'Fold the world; stand again at the fountain', icon: 'rune_astralrecall', shape: 'self', effects: [{ kind: 'recall' }], fx: { type: 'self', color: '#f0c8e8' } },
+  // light
+  aegis:       { school: 'light', name: 'Aegis', cost: 10, desc: 'A shining shield turns pain back on the striker', icon: 'rune_aegis', shape: 'self', effects: [{ kind: 'buff', stat: 'reflect', secs: 12 }], fx: { type: 'self', color: '#fff0b0' } },
+  consecrate:  { school: 'light', name: 'Consecrate', cost: 14, desc: 'Holy ground mends friends and sears foes', icon: 'rune_consecrate', shape: 'totem', r: 4, secs: 12, effects: [{ kind: 'heal', amount: 6, party: true }, { kind: 'damage', amount: 4 }], fx: { type: 'nova', color: '#fff0a0', r: 4 } },
+  judgment:    { school: 'light', name: 'Judgment', cost: 15, desc: 'The wounded are weighed, and found wanting', icon: 'rune_judgment', shape: 'target', range: 9, effects: [{ kind: 'execute', factor: 0.5 }], fx: { type: 'beam', color: '#ffe880' } },
+  // dark
+  hex:         { school: 'dark', name: 'Hex', cost: 5, desc: "Rot a foe's armor from within", icon: 'rune_hex', shape: 'target', range: 9, effects: [{ kind: 'hex', amount: 3, secs: 10 }], fx: { type: 'bolt', color: '#b060d8' } },
+  bloodritual: { school: 'dark', name: 'Blood Ritual', cost: 2, desc: 'Pay in blood; be repaid in power', icon: 'rune_bloodritual', shape: 'self', effects: [{ kind: 'mpgain', amount: 14, hpcost: 10 }], fx: { type: 'self', color: '#c03060' } },
+  shadowstep:  { school: 'dark', name: 'Shadowstep', cost: 9, desc: 'Vanish, and reappear at your victim\'s back', icon: 'rune_shadowstep', shape: 'target', range: 8, effects: [{ kind: 'blink', behind: true }], fx: { type: 'self', color: '#8040a8' } },
+  plague:      { school: 'dark', name: 'Plague', cost: 14, desc: 'A sickness that leaps to the next living thing', icon: 'rune_plague', shape: 'target', range: 8, effects: [{ kind: 'dot', perSec: 4, secs: 8, hop: true }], fx: { type: 'bolt', color: '#80c030' } },
+});
+
+// Xarthax is spawned specially (uid-safe) and opens the Spellcraft flow
+const XARTHAX = {
+  id: 'xarthax', name: 'Xarthax the Spellwright', art: 'spellwright', spot: [5, 10],
+  home: 'a corner table at the Silver Stoat',
+  locale: 'You are visiting Emberfall village from your tower in the distant Shardfields, taking a corner table at the Silver Stoat tavern. You travel the frontier collecting spell-ideas.',
+  persona: 'a shard-mad spell-researcher, banned from three guilds for irresponsible brilliance, theatrical and utterly delighted by novelty. You weave NEW spells from ideas adventurers describe to you. Draw out their idea; ask at most one clarifying question; when the idea is clear, tell them to pull the golden thread.',
+  specialty: 'spellcraft',
+  greeting: 'Ahh, wardens! Sit, sit! I smell unspent mana and unripe IDEAS. Describe me a spell that does not exist — anything at all! — and when your idea is ripe, pull the golden thread and I shall weave it into the world.',
 };
 
 // every non-martial spell exists as a learnable scroll item
@@ -133,6 +191,7 @@ const GameData = {
   flags: { hasLostBlade: false },
   quests: { lostblade: 'available' }, // available -> active -> found -> done
   inventory: new Array(32).fill(null),
+  craftedSpells: [], // player-invented spell specs (persisted; re-registered on load)
 };
 
 // the party sets out with a modest kit

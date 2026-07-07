@@ -77,6 +77,7 @@ const SPRITE_META = {
   chest: { vDiv: 2.3 }, fountain: { vDiv: 1.12 }, well: { vDiv: 1.5 }, lamp: { vDiv: 1.05 },
   tree: { vDiv: 0.85 }, pine: { vDiv: 0.8 }, sword: { vDiv: 1.9 },
   anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
+  spellwright: { vDiv: 1.35 }, golem: { vDiv: 1.1 }, wisp: { vDiv: 2.0 }, totemArt: { vDiv: 1.6 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
   innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
   campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
@@ -1054,6 +1055,41 @@ class BootScene extends Phaser.Scene {
       g.beginPath(); g.moveTo(5, 27); g.lineTo(27, 27); g.stroke();
     });
 
+    // spellcraft cast: Xarthax, summons, totem
+    makeArt('spellwright', g => {
+      g.fillStyle = '#3a2a5a'; g.fillRect(9, 15, 14, 15);           // star-robe
+      g.fillStyle = '#d0b040';
+      [[11, 18], [19, 22], [14, 26]].forEach(([x, y]) => g.fillRect(x, y, 2, 2));
+      ell(g, 16, 10, 5.5, 5.5, '#e0c0a0');
+      g.fillStyle = '#d4d8de';                                       // wild white hair
+      ell(g, 16, 5.5, 7, 4, '#d4d8de');
+      g.fillRect(8, 5, 3, 8); g.fillRect(21, 5, 3, 8);
+      g.fillStyle = '#c9a227';                                       // brass goggles
+      g.fillRect(10, 8, 12, 3);
+      ell(g, 12.5, 9.5, 2.5, 2.5, '#3ecfb0'); ell(g, 19.5, 9.5, 2.5, 2.5, '#3ecfb0');
+    });
+    makeArt('golem', g => {
+      g.fillStyle = '#6a6e78';
+      g.fillRect(9, 10, 14, 14);                                     // torso
+      ell(g, 16, 7, 6, 5, '#7a7f8a');                                // head
+      g.fillRect(4, 12, 5, 10); g.fillRect(23, 12, 5, 10);           // arms
+      g.fillRect(10, 24, 5, 7); g.fillRect(17, 24, 5, 7);            // legs
+      g.fillStyle = '#f0a04a'; ell(g, 13, 7, 1.5, 1.5, '#f0a04a'); ell(g, 19, 7, 1.5, 1.5, '#f0a04a');
+      g.fillStyle = '#4d515c'; g.fillRect(11, 14, 10, 2);            // crack
+    });
+    makeArt('wisp', g => {
+      ell(g, 16, 16, 9, 9, 'rgba(200,200,255,0.5)');
+      ell(g, 16, 16, 5.5, 5.5, '#c8c8f0');
+      ell(g, 14, 14, 2, 2, '#ffffff');
+    });
+    makeArt('totemArt', g => {
+      g.fillStyle = '#6b4526'; g.fillRect(12, 6, 8, 24);
+      g.fillStyle = '#8a6238'; g.fillRect(12, 6, 3, 24);
+      g.fillStyle = '#c9a227'; g.fillRect(10, 8, 12, 3); g.fillRect(10, 18, 12, 3);
+      ell(g, 16, 13, 2.5, 2.5, '#3ecfb0');
+      tri(g, [10, 6, 16, 1, 22, 6], '#8a6238');
+    });
+
     this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
@@ -1065,6 +1101,14 @@ class BootScene extends Phaser.Scene {
      'ic_rock', 'ic_stone', 'ic_roots', 'ic_regen', 'ic_gheal', 'ic_bless',
      'ic_lash', 'ic_raise', 'ic_sunray', 'ic_prism', 'ic_hour', 'ic_drain', 'ic_curse', 'ic_arma',
     ].forEach(k => this.textures.addCanvas(k, ART[k]));
+
+    // spec spells with 'rune_*' icons get auto-painted school runes
+    for (const [sid, sp] of Object.entries(SPELLS)) {
+      if (sp.icon && sp.icon.startsWith('rune_') && !this.textures.exists(sp.icon)) {
+        makeRuneIcon(sp.icon, sp.school, sp.name);
+        this.textures.addCanvas(sp.icon, ART[sp.icon]);
+      }
+    }
 
     this.scene.start('World');
   }
@@ -1098,6 +1142,7 @@ class WorldScene extends Phaser.Scene {
       GameData.inventory = s.inventory;
       GameData.flags = s.flags;
       GameData.quests = s.quests;
+      if (Array.isArray(s.crafted)) GameData.craftedSpells = s.crafted;
       s.party.forEach((sp, i) => Object.assign(GameData.party[i], sp));
     }
 
@@ -1139,10 +1184,23 @@ class WorldScene extends Phaser.Scene {
     this.flyDrainAt = 0;
 
     // party buffs (expiry timestamps; effect sizes are fixed per spell)
-    this.buffs = { atkUntil: 0, defUntil: 0, hasteUntil: 0, regenUntil: 0, waterwalkUntil: 0 };
+    this.buffs = {
+      atkUntil: 0, defUntil: 0, hasteUntil: 0, regenUntil: 0, waterwalkUntil: 0,
+      dodgeUntil: 0, reflectUntil: 0, ghostUntil: 0, deathlessUntil: 0,
+    };
     this.regenNext = 0;
     this.sinkNext = 0;
     this._buffStr = '';
+    this.tempWalls = []; // conjured stone (Bulwark etc.) — restored on expiry
+
+    // player-crafted spells: re-register specs + rune icons
+    for (const spec of GameData.craftedSpells) {
+      SPELLS[spec.id] = spec;
+      if (!this.textures.exists(spec.icon)) {
+        makeRuneIcon(spec.icon, spec.school, spec.name);
+        this.textures.addCanvas(spec.icon, ART[spec.icon]);
+      }
+    }
 
     if (this.save) {
       this.px = this.save.px; this.py = this.save.py; this.angle = this.save.angle || 0;
@@ -1271,6 +1329,7 @@ class WorldScene extends Phaser.Scene {
       gold: GameData.gold, inventory: GameData.inventory,
       flags: GameData.flags, quests: GameData.quests,
       party, gone: [...this.goneUids],
+      crafted: GameData.craftedSpells,
     };
     try { localStorage.setItem('emberfall-save', JSON.stringify(s)); } catch (e) {}
   }
@@ -1531,6 +1590,17 @@ class WorldScene extends Phaser.Scene {
       enemies++;
     }
 
+    // Xarthax the Spellwright takes his corner table at the Stoat. Manual push
+    // with a fixed out-of-band uid: he consumes no counter uid, so save
+    // gone-lists stay stable no matter what spawns around him.
+    this.entities.push({
+      kind: 'villager', type: XARTHAX.art, art: XARTHAX.art,
+      gx: VILLAGE.x1 + XARTHAX.spot[0], gy: VILLAGE.y1 + XARTHAX.spot[1],
+      x: VILLAGE.x1 + XARTHAX.spot[0] + 0.5, y: VILLAGE.y1 + XARTHAX.spot[1] + 0.5,
+      vDiv: SPRITE_META[XARTHAX.art].vDiv, uid: 999999,
+      name: XARTHAX.name, villager: XARTHAX, chat: [],
+    });
+
     // Bram's stolen blade: a goblin camp far east, across the river ford.
     // Skip entirely once the blade is claimed (migrated saves regrow the world,
     // and a second blade would be nonsense). Last spawn block, so uids stay stable.
@@ -1747,11 +1817,35 @@ class WorldScene extends Phaser.Scene {
       // (iterate a copy — burning foes can die and splice mid-loop)
       for (const e of [...this.entities]) {
         if (e.kind !== 'enemy' || e.hp <= 0) continue;
-        // burning ticks (Fire school)
+        // burning/poison ticks (any DoT; strength set by the spell)
         if (e.burnUntil && time < e.burnUntil && time > (e.burnNext || 0)) {
           e.burnNext = time + 1000;
-          this.damageEnemy(e, 3);
+          this.damageEnemy(e, e.burnPerSec || 3);
           if (e.hp <= 0) continue;
+        }
+        if (time < (e.sleepUntil || 0)) continue; // dreaming (damage wakes it)
+        // charmed foes turn on their own kind
+        if (time < (e.charmUntil || 0)) {
+          let cb = null, cbd = 8;
+          for (const f of this.entities) {
+            if (f.kind !== 'enemy' || f === e || f.hp <= 0) continue;
+            const d2 = Math.hypot(f.x - e.x, f.y - e.y);
+            if (d2 < cbd) { cbd = d2; cb = f; }
+          }
+          if (cb) {
+            if (cbd > 1.1) {
+              const step = e.speed * dt;
+              const nx = e.x + (cb.x - e.x) / cbd * step;
+              const ny = e.y + (cb.y - e.y) / cbd * step;
+              if (this.enemyCanStand(nx, e.y, e)) e.x = nx;
+              if (this.enemyCanStand(e.x, ny, e)) e.y = ny;
+              e.gx = Math.floor(e.x); e.gy = Math.floor(e.y);
+            } else if (time > e.nextAtk) {
+              e.nextAtk = time + e.cd;
+              this.damageEnemy(cb, Math.max(1, e.atk + ri(-1, 2) - this.enemyDef(cb)));
+            }
+          }
+          continue; // ignores the party while charmed
         }
         const pd = Math.hypot(this.px - e.x, this.py - e.y);
         e.aggro = pd < 7 && this.lineOfSight(e.x, e.y, this.px, this.py);
@@ -1783,6 +1877,81 @@ class WorldScene extends Phaser.Scene {
         }
       }
 
+      // summoned allies hunt the nearest enemy
+      for (const a of [...this.entities]) {
+        if (a.kind !== 'ally') continue;
+        if (time > a.until) {
+          FX.burst(a.x, this.terrainH(a.x, a.y) + 0.5, a.y, '#c8ccd4', 10);
+          this.entities.splice(this.entities.indexOf(a), 1);
+          continue;
+        }
+        let best = null, bd = 9;
+        for (const f of this.entities) {
+          if (f.kind !== 'enemy' || f.hp <= 0) continue;
+          const d2 = Math.hypot(f.x - a.x, f.y - a.y);
+          if (d2 < bd) { bd = d2; best = f; }
+        }
+        if (!best) { // heel: drift back toward the party
+          const dp = Math.hypot(this.px - a.x, this.py - a.y);
+          if (dp > 2.5) {
+            const step = a.speed * dt;
+            const nx = a.x + (this.px - a.x) / dp * step, ny = a.y + (this.py - a.y) / dp * step;
+            if (this.enemyCanStand(nx, a.y, a)) a.x = nx;
+            if (this.enemyCanStand(a.x, ny, a)) a.y = ny;
+          }
+          continue;
+        }
+        if (bd > 1.1) {
+          const step = a.speed * dt;
+          const nx = a.x + (best.x - a.x) / bd * step, ny = a.y + (best.y - a.y) / bd * step;
+          if (this.enemyCanStand(nx, a.y, a)) a.x = nx;
+          if (this.enemyCanStand(a.x, ny, a)) a.y = ny;
+          a.gx = Math.floor(a.x); a.gy = Math.floor(a.y);
+        } else if (time > a.nextAtk) {
+          a.nextAtk = time + a.cd;
+          FX.burst(best.x, this.terrainH(best.x, best.y) + 0.5, best.y, '#c8ccd4', 5, { scale: 0.16 });
+          this.damageEnemy(best, Math.max(1, a.atk + ri(0, 3) - this.enemyDef(best)));
+        }
+      }
+
+      // totems pulse their effects
+      for (const t2 of [...this.entities]) {
+        if (t2.kind !== 'totem') continue;
+        if (time > t2.until) {
+          FX.burst(t2.x, this.terrainH(t2.x, t2.y) + 0.5, t2.y, t2.spec.fx.color, 8);
+          this.entities.splice(this.entities.indexOf(t2), 1);
+          continue;
+        }
+        if (time > (t2.nextPulse || 0)) {
+          t2.nextPulse = time + 2000;
+          const vic = this.enemiesNear(t2.x, t2.y, t2.spec.r || 4);
+          const partyNear = Math.hypot(this.px - t2.x, this.py - t2.y) < (t2.spec.r || 4) + 1;
+          for (const ef of t2.spec.effects) {
+            if (['damage', 'dot', 'control', 'hex', 'knockback'].includes(ef.kind)) {
+              if (vic.length) {
+                const scaled = ef.kind === 'damage' ? { ...ef, amount: Math.ceil((ef.amount || 4) / 2) } : ef;
+                this.applyPrimitive(t2.heroIdx, t2.spec, scaled, vic, null, time);
+              }
+            } else if ((ef.kind === 'heal' || ef.kind === 'buff') && partyNear) {
+              const scaled = ef.kind === 'heal' ? { ...ef, amount: Math.ceil((ef.amount || 6) / 3) } : ef;
+              this.applyPrimitive(t2.heroIdx, t2.spec, scaled, [], null, time);
+            }
+          }
+          FX.ring(t2.x, this.terrainH(t2.x, t2.y) + 0.15, t2.y, t2.spec.fx.color, t2.spec.r || 4, 10);
+        }
+      }
+
+      // conjured walls crumble on schedule
+      for (let i = this.tempWalls.length - 1; i >= 0; i--) {
+        const tw = this.tempWalls[i];
+        if (time > tw.until) {
+          this.map[tw.y][tw.x] = tw.prev;
+          R3D.removeTempWall(tw.mesh);
+          FX.burst(tw.x + 0.5, this.terrainH(tw.x + 0.5, tw.y + 0.5) + 0.6, tw.y + 0.5, '#b0985a', 8);
+          this.tempWalls.splice(i, 1);
+        }
+      }
+
       // buff upkeep: regeneration ticks, water-walk sinking, HUD readout
       this._onWater = (this.map[Math.floor(this.py)] || [])[Math.floor(this.px)] === T_WATER;
       if (time < this.buffs.regenUntil && time > this.regenNext) {
@@ -1806,6 +1975,10 @@ class WorldScene extends Phaser.Scene {
       if (time < this.buffs.hasteUntil) bl.push('HASTE ' + Math.ceil((this.buffs.hasteUntil - time) / 1000));
       if (time < this.buffs.regenUntil) bl.push('REGEN ' + Math.ceil((this.buffs.regenUntil - time) / 1000));
       if (time < this.buffs.waterwalkUntil) bl.push('WWALK ' + Math.ceil((this.buffs.waterwalkUntil - time) / 1000));
+      if (time < this.buffs.dodgeUntil) bl.push('DODGE ' + Math.ceil((this.buffs.dodgeUntil - time) / 1000));
+      if (time < this.buffs.reflectUntil) bl.push('AEGIS ' + Math.ceil((this.buffs.reflectUntil - time) / 1000));
+      if (time < this.buffs.ghostUntil) bl.push('GHOST ' + Math.ceil((this.buffs.ghostUntil - time) / 1000));
+      if (time < this.buffs.deathlessUntil) bl.push('DEATHLESS ' + Math.ceil((this.buffs.deathlessUntil - time) / 1000));
       const bs = bl.join('  ');
       if (bs !== this._buffStr) { this._buffStr = bs; this.buffText.setText(bs); }
 
@@ -1970,6 +2143,7 @@ class WorldScene extends Phaser.Scene {
       if (h.hp <= 0 || time < h.readyAt || d > h.range || t.hp <= 0) return;
       h.readyAt = time + h.rec * this.hasteMul();
       fired++;
+      const ghost = time < this.buffs.ghostUntil ? 3 : 0; // Ghost Blades: spectral true damage
       if (FX.ready) {
         const az = this.terrainH(t.x, t.y) + 0.5;
         if (h.range > 3) {
@@ -1982,7 +2156,7 @@ class WorldScene extends Phaser.Scene {
           FX.burst(t.x, az, t.y, volleyColors[h.name] || '#e8e8e8', 8, { scale: 0.2 });
         }
       }
-      this.damageEnemy(t, Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - t.def));
+      this.damageEnemy(t, Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - this.enemyDef(t)) + ghost);
     });
     if (!fired && time > (this._attackMsgCd || 0)) {
       this.toast(d > 2.2 ? 'Too far for Roderick — the others are recovering...' : 'The party is recovering...');
@@ -2014,8 +2188,10 @@ class WorldScene extends Phaser.Scene {
   // generic spell visuals, driven by SPELLS[id].fx = {type, color, r} —
   // adding a new spell's look is data in the registry, not code here
   spellFX(spellId, t) {
-    const fx = SPELLS[spellId] && SPELLS[spellId].fx;
+    const sp = SPELLS[spellId];
+    const fx = sp && sp.fx;
     if (!fx || !FX.ready) return;
+    if (sp.shape === 'projectile') return; // the executor owns its own missile
     const fz = this.camZ - 0.15;
     const from = [this.px + Math.cos(this.angle) * 0.4, fz, this.py + Math.sin(this.angle) * 0.4];
     const at = t ? [t.x, this.terrainH(t.x, t.y) + 0.5, t.y] : null;
@@ -2025,6 +2201,182 @@ class WorldScene extends Phaser.Scene {
       case 'nova': FX.ring(this.px, this.terrainH(this.px, this.py) + 0.2, this.py, fx.color, fx.r || 4); break;
       case 'self': FX.burst(this.px, this.camZ - 0.35, this.py, fx.color, 16, { grav: 1.2, speed: 1.4, life: 0.7 }); break;
     }
+  }
+
+  // ---------- spec-spell plumbing (src/spellcraft.js drives these) ----------
+
+  enemyDef(e) {
+    return Math.max(0, e.def - (this.time.now < (e.hexUntil || 0) ? (e.hexAmount || 2) : 0));
+  }
+
+  castFromSpec(idx, spec, target, time) {
+    return applyEffects(this, idx, spec, target, time);
+  }
+
+  applyPrimitive(heroIdx, spec, ef, victims, target, time) {
+    const h = GameData.party[heroIdx] || GameData.party[0];
+    switch (ef.kind) {
+      case 'damage':
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, (ef.amount || 4) + h.level - (ef.true ? 0 : this.enemyDef(v)))));
+        break;
+      case 'dot':
+        victims.forEach(v => {
+          v.burnUntil = time + (ef.secs || 4) * 1000;
+          v.burnNext = time + 1000;
+          v.burnPerSec = ef.perSec || 3;
+          v.burnHop = !!ef.hop;
+        });
+        break;
+      case 'heal': {
+        const living = GameData.party.filter(x => x.hp > 0);
+        const targets = ef.party ? living
+          : [living.reduce((a, b) => (a.hp / a.maxHp <= b.hp / b.maxHp ? a : b))];
+        targets.forEach(x => {
+          x.hp = Math.min(x.maxHp, x.hp + (ef.amount || 8));
+          this.floatText(12 + GameData.party.indexOf(x) * 236 + 113, 545, `+${ef.amount || 8}`, '#80ff9a');
+        });
+        break;
+      }
+      case 'buff': {
+        const key = { atk: 'atkUntil', def: 'defUntil', haste: 'hasteUntil', dodge: 'dodgeUntil', reflect: 'reflectUntil', ghost: 'ghostUntil', deathless: 'deathlessUntil' }[ef.stat];
+        if (key) this.buffs[key] = time + (ef.secs || 12) * 1000;
+        break;
+      }
+      case 'control':
+        victims.forEach(v => {
+          const ms = (ef.secs || 3) * 1000;
+          if (ef.c === 'root') v.rootUntil = time + ms;
+          else if (ef.c === 'slow') v.slowUntil = time + ms;
+          else if (ef.c === 'sleep') v.sleepUntil = time + ms;
+          else if (ef.c === 'daze') v.nextAtk = Math.max(v.nextAtk, time + ms);
+          else if (ef.c === 'charm') v.charmUntil = time + ms;
+        });
+        break;
+      case 'knockback': victims.forEach(v => this.knockback(v, ef.amount || 2)); break;
+      case 'summon': this.summonAlly(ef.type === 'golem' ? 'golem' : 'wisp', ef.secs || 20); break;
+      case 'drain': {
+        const amt = ef.amount || 8;
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, amt)));
+        h.hp = Math.min(h.maxHp, h.hp + amt);
+        this.floatText(12 + heroIdx * 236 + 113, 545, `+${amt}`, '#c83a5a');
+        break;
+      }
+      case 'hex':
+        victims.forEach(v => { v.hexUntil = time + (ef.secs || 8) * 1000; v.hexAmount = ef.amount || 2; });
+        break;
+      case 'blink': {
+        let bx = this.px, by = this.py;
+        if (ef.behind && target) {
+          const a = Math.atan2(target.y - this.py, target.x - this.px);
+          const cx = target.x + Math.cos(a) * 1.2, cy = target.y + Math.sin(a) * 1.2;
+          if (this.canStand(cx, cy)) { bx = cx; by = cy; }
+        } else {
+          const dx = Math.cos(this.angle), dy = Math.sin(this.angle);
+          for (let d = ef.dist || 6; d > 0.5; d -= 0.5) {
+            const cx = this.px + dx * d, cy = this.py + dy * d;
+            if (this.canStand(cx, cy)) { bx = cx; by = cy; break; }
+          }
+        }
+        FX.burst(this.px, this.camZ - 0.3, this.py, spec.fx.color, 10);
+        this.px = bx; this.py = by;
+        FX.burst(bx, this.terrainH(bx, by) + 0.5, by, spec.fx.color, 12);
+        break;
+      }
+      case 'wall': {
+        const perpA = this.angle + Math.PI / 2;
+        const cx2 = this.px + Math.cos(this.angle) * 2.2, cy2 = this.py + Math.sin(this.angle) * 2.2;
+        const half = Math.floor((ef.len || 3) / 2);
+        for (let i = -half; i <= half; i++) {
+          const wx = Math.floor(cx2 + Math.cos(perpA) * i), wy = Math.floor(cy2 + Math.sin(perpA) * i);
+          if (!this.walkableAt(wx, wy) || this.inVillage(wx, wy, 0)) continue;
+          if (Math.floor(this.px) === wx && Math.floor(this.py) === wy) continue;
+          if (this.tempWalls.some(t2 => t2.x === wx && t2.y === wy)) continue;
+          const prev = this.map[wy][wx];
+          this.map[wy][wx] = T_STONE;
+          this.tempWalls.push({ x: wx, y: wy, prev, until: time + (ef.secs || 10) * 1000, mesh: R3D.addTempWall(wx, wy) });
+        }
+        break;
+      }
+      case 'recall':
+        this.flying = false; this.landing = false; this.eyeZ = 0.5; this.pitch = 0;
+        this.px = START.x; this.py = START.y;
+        this.toast('The world folds — you stand at the fountain.');
+        break;
+      case 'execute':
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round((v.maxHp - v.hp) * (ef.factor || 0.4)))));
+        break;
+      case 'mpgain': {
+        const hpc = ef.hpcost || 0;
+        if (h.hp <= hpc) { this.toast('Not enough life to trade!'); break; }
+        if (hpc) {
+          h.hp -= hpc;
+          this.floatText(12 + heroIdx * 236 + 113, 545, `-${hpc}`, '#ff8080');
+        }
+        h.mp = Math.min(h.maxMp, h.mp + (ef.amount || 10));
+        break;
+      }
+      case 'spikes': {
+        const cx3 = target ? target.x : this.px, cy3 = target ? target.y : this.py;
+        for (let i = 0; i < (ef.count || 6); i++) {
+          this.time.delayedCall(i * 240, () => {
+            const a = Math.random() * Math.PI * 2, rr = Math.random() * (ef.r || 4);
+            const sx = cx3 + Math.cos(a) * rr, sy = cy3 + Math.sin(a) * rr;
+            const gz = this.terrainH(sx, sy);
+            FX.burst(sx, gz + 0.4, sy, spec.fx.color, 8, { speed: 3, grav: -6 });
+            this.enemiesNear(sx, sy, 1.1).forEach(v => this.damageEnemy(v, Math.max(1, (ef.amount || 6) - this.enemyDef(v))));
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  summonAlly(type, secs) {
+    if (this.entities.filter(e => e.kind === 'ally').length >= 2) {
+      this.toast('The weave supports only two servants at once.');
+      return;
+    }
+    let ax = this.px + Math.cos(this.angle + 0.9) * 1.4;
+    let ay = this.py + Math.sin(this.angle + 0.9) * 1.4;
+    if (!this.canStand(ax, ay)) { ax = this.px; ay = this.py; }
+    const stats = type === 'golem'
+      ? { atk: 12, speed: 2.0, cd: 1200 }
+      : { atk: 6, speed: 3.2, cd: 900 };
+    this.entities.push({
+      kind: 'ally', type, art: type, gx: Math.floor(ax), gy: Math.floor(ay),
+      x: ax, y: ay, vDiv: SPRITE_META[type].vDiv, uid: -1000 - this.entities.length,
+      ...stats, nextAtk: 0, until: this.time.now + secs * 1000,
+    });
+    FX.burst(ax, this.terrainH(ax, ay) + 0.6, ay, '#c8ccd4', 14);
+  }
+
+  placeTotem(spec, time, heroIdx) {
+    const tx = this.px + Math.cos(this.angle) * 1.4, ty = this.py + Math.sin(this.angle) * 1.4;
+    this.entities.push({
+      kind: 'totem', type: 'totemArt', art: 'totemArt',
+      gx: Math.floor(tx), gy: Math.floor(ty), x: tx, y: ty,
+      vDiv: SPRITE_META.totemArt.vDiv, uid: -5000 - this.entities.length,
+      spec, heroIdx: heroIdx || 0, until: time + (spec.secs || 15) * 1000, nextPulse: 0,
+    });
+  }
+
+  registerCraftedSpell(spec, learner) {
+    if (typeof spec.cost !== 'number') { // defensive: never register a costless spell
+      const v = validateSpellSpec(spec);
+      spec.cost = v.cost || 6;
+    }
+    spec.id = 'crafted_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4);
+    spec.icon = 'rune_' + spec.id;
+    spec.crafted = true;
+    SPELLS[spec.id] = spec;
+    makeRuneIcon(spec.icon, spec.school, spec.name);
+    this.textures.addCanvas(spec.icon, ART[spec.icon]);
+    GameData.craftedSpells.push(spec);
+    learner.spells.push(spec.id);
+    learner.quick = spec.id;
+    this.refreshHUD();
+    this.toast(`${learner.name} learns ${spec.name}! (woven — key ${GameData.party.indexOf(learner) + 1})`);
+    this.saveGame();
   }
 
   castSkill(idx, time) {
@@ -2047,16 +2399,16 @@ class WorldScene extends Phaser.Scene {
       case 'cleave': {
         const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 2.6);
         if (!victims.length) { this.toast('No foes within reach of the cleave!'); return; }
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + this.buffAtk() + h.level + ri(0, 2) - v.def)));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + this.buffAtk() + h.level + ri(0, 2) - this.enemyDef(v))));
         ok = true;
         break;
       }
       case 'doubleshot': {
         if (!t || tDist > 9) { this.toast('No target in bow range!'); return; }
-        this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - t.def));
+        this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - this.enemyDef(t)));
         this.time.delayedCall(160, () => {
           if (t.hp > 0 && this.entities.includes(t)) {
-            this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - t.def));
+            this.damageEnemy(t, Math.max(1, Math.round(heroAtk(h) * 0.8) + this.buffAtk() + h.level + ri(0, 2) - this.enemyDef(t)));
           }
         });
         ok = true;
@@ -2076,7 +2428,7 @@ class WorldScene extends Phaser.Scene {
         this.cameras.main.flash(120, 255, 140, 40);
         if (FX.ready) FX.ring(t.x, this.terrainH(t.x, t.y) + 0.2, t.y, '#ff7020', 2.2);
         const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - t.x, e.y - t.y) < 2);
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - v.def)));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - this.enemyDef(v))));
         ok = true;
         break;
       }
@@ -2107,7 +2459,7 @@ class WorldScene extends Phaser.Scene {
       // ---- fire ----
       case 'firebolt': {
         if (!t || tDist > 8) { this.toast('No target in range!'); return; }
-        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - t.def));
+        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - this.enemyDef(t)));
         if (t.hp > 0) { t.burnUntil = time + 4000; t.burnNext = time + 1000; }
         ok = true;
         break;
@@ -2117,7 +2469,7 @@ class WorldScene extends Phaser.Scene {
         if (!victims.length) { this.toast('No foes near enough to burn!'); return; }
         this.cameras.main.flash(160, 255, 110, 20);
         victims.forEach(v => {
-          this.damageEnemy(v, Math.max(1, 8 + h.level * 2 + ri(0, 3) - v.def));
+          this.damageEnemy(v, Math.max(1, 8 + h.level * 2 + ri(0, 3) - this.enemyDef(v)));
           if (v.hp > 0) { v.burnUntil = time + 4000; v.burnNext = time + 1000; }
         });
         ok = true;
@@ -2129,14 +2481,14 @@ class WorldScene extends Phaser.Scene {
         if (!t || tDist > 9) { this.toast('No target in range!'); return; }
         this.cameras.main.flash(80, 200, 230, 255);
         const dmg = 5 + h.level * 2 + ri(0, 3);
-        this.damageEnemy(t, Math.max(1, dmg - t.def));
+        this.damageEnemy(t, Math.max(1, dmg - this.enemyDef(t)));
         const chained = this.enemiesNear(t.x, t.y, 3).filter(v => v !== t && v.hp > 0).slice(0, 2);
         chained.forEach(v => {
           if (FX.ready) {
             FX.beam(t.x, this.terrainH(t.x, t.y) + 0.6, t.y,
               v.x, this.terrainH(v.x, v.y) + 0.6, v.y, '#a0e0ff');
           }
-          this.damageEnemy(v, Math.max(1, Math.round(dmg * 0.6) - v.def));
+          this.damageEnemy(v, Math.max(1, Math.round(dmg * 0.6) - this.enemyDef(v)));
         });
         ok = true;
         break;
@@ -2159,7 +2511,7 @@ class WorldScene extends Phaser.Scene {
       // ---- water ----
       case 'icebolt': {
         if (!t || tDist > 9) { this.toast('No target in range!'); return; }
-        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - t.def));
+        this.damageEnemy(t, Math.max(1, 6 + h.level * 2 + ri(0, 2) - this.enemyDef(t)));
         if (t.hp > 0) t.slowUntil = time + 3000;
         ok = true;
         break;
@@ -2174,7 +2526,7 @@ class WorldScene extends Phaser.Scene {
       // ---- earth ----
       case 'rockblast': {
         if (!t || tDist > 8) { this.toast('No target in range!'); return; }
-        this.damageEnemy(t, Math.max(1, 8 + h.level * 3 + ri(0, 3) - t.def));
+        this.damageEnemy(t, Math.max(1, 8 + h.level * 3 + ri(0, 3) - this.enemyDef(t)));
         if (t.hp > 0) this.knockback(t, 2);
         ok = true;
         break;
@@ -2241,7 +2593,7 @@ class WorldScene extends Phaser.Scene {
       case 'sunray': {
         if (!t || tDist > 10) { this.toast('No target in range!'); return; }
         this.cameras.main.flash(100, 255, 240, 160);
-        this.damageEnemy(t, Math.max(1, 14 + h.level * 4 + ri(0, 4) - t.def));
+        this.damageEnemy(t, Math.max(1, 14 + h.level * 4 + ri(0, 4) - this.enemyDef(t)));
         if (t.hp > 0) t.nextAtk = Math.max(t.nextAtk, time + 3000);
         ok = true;
         break;
@@ -2251,7 +2603,7 @@ class WorldScene extends Phaser.Scene {
           .filter(v => this.lineOfSight(this.px, this.py, v.x, v.y, this.camZ));
         if (!victims.length) { this.toast('No foes in sight!'); return; }
         this.cameras.main.flash(180, 255, 255, 255);
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - v.def)));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, 9 + h.level * 3 + ri(0, 3) - this.enemyDef(v))));
         GameData.party.forEach(x => { if (x.hp > 0) x.hp = Math.min(x.maxHp, x.hp + 6); });
         ok = true;
         break;
@@ -2301,6 +2653,16 @@ class WorldScene extends Phaser.Scene {
         ok = true;
         break;
       }
+
+      default: {
+        // spec spells (data-authored or player-crafted) run through the executor
+        if (spell.effects) {
+          const res = this.castFromSpec(idx, spell, t, time);
+          if (!res.ok) { if (res.msg) this.toast(res.msg); return; }
+          ok = true;
+        }
+        break;
+      }
     }
 
     if (ok) {
@@ -2314,6 +2676,7 @@ class WorldScene extends Phaser.Scene {
   damageEnemy(e, dmg) {
     if (e.hp <= 0) return;
     e.hp -= dmg;
+    if (e.sleepUntil) e.sleepUntil = 0; // pain wakes the dreaming
     if (FX.ready) FX.burst(e.x, this.terrainH(e.x, e.y) + 0.55, e.y, '#ffcfa0', 6, { scale: 0.17, speed: 1.6, life: 0.35 });
     const p = this.projectEntity(e);
     if (p) this.floatText(p.x + ri(-16, 16), p.y, `-${dmg}`, '#ff9a80');
@@ -2328,6 +2691,17 @@ class WorldScene extends Phaser.Scene {
     this.goneUids.add(e.uid);
     this.entities.splice(this.entities.indexOf(e), 1);
     if (this.target === e) this.target = null;
+    // the Plague leaps to the nearest living thing
+    if (e.burnHop && this.time.now < (e.burnUntil || 0)) {
+      const next = this.enemiesNear(e.x, e.y, 4).filter(v => v.hp > 0)[0];
+      if (next) {
+        next.burnUntil = e.burnUntil;
+        next.burnNext = this.time.now + 600;
+        next.burnPerSec = e.burnPerSec;
+        next.burnHop = true;
+        if (FX.ready) FX.beam(e.x, this.terrainH(e.x, e.y) + 0.6, e.y, next.x, this.terrainH(next.x, next.y) + 0.6, next.y, '#80c030');
+      }
+    }
     let dropMsg = '';
     if (Math.random() < 0.22) {
       const id = e.type === 'wolf'
@@ -2348,8 +2722,13 @@ class WorldScene extends Phaser.Scene {
     const targets = GameData.party.filter(h => h.hp > 0);
     if (!targets.length) return;
     const h = targets[ri(0, targets.length - 1)];
+    if (this.time.now < this.buffs.dodgeUntil && Math.random() < 0.25) {
+      this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, 'MISS', '#c8e8ff');
+      return;
+    }
     const atkVal = this.time.now < (e.curseUntil || 0) ? Math.ceil(e.atk / 2) : e.atk;
     const dmg = Math.max(1, atkVal + ri(-1, 2) - heroDef(h) - this.buffDef());
+    if (this.time.now < this.buffs.reflectUntil) this.damageEnemy(e, Math.max(1, Math.round(dmg * 0.3)));
     h.hp = Math.max(0, h.hp - dmg);
     this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, `-${dmg}`, '#ff8080');
     this.tweens.add({ targets: this.dmgVignette, alpha: { from: 0.32, to: 0 }, duration: 300 });

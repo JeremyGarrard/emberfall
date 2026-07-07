@@ -59,6 +59,29 @@ texture registration — overriding any painter (portraits, billboards, `face_<i
 items). Empty/missing = painter fallback (must always work). Dialogue shows
 `face_<villagerId>` ‖ the villager's billboard.
 
+## Spec spells & Spellcraft (`src/spellcraft.js`)
+
+Spells come in two forms. **Hardcoded** spells have a `case` in `castSkill` (the
+originals). **Spec spells** are pure data — a `{shape, effects:[...]}` object — run
+by the shared executor; `castSkill`'s `default` branch routes any spell with
+`.effects` through `castFromSpec → applyEffects`. Most spells (and ALL player-crafted
+ones) are spec spells.
+- **Shapes**: target, projectile (dodgeable, real travel time), nova, line, self, totem.
+- **Primitives** (in an effect's `kind`): damage, dot, heal, buff, control, knockback,
+  summon, drain, hex, blink, wall, recall, execute, mpgain, spikes. Each maps to a case
+  in `WorldScene.applyPrimitive`. Add a primitive = one case there + a weight in
+  `specWeight` + list it in the LLM prompt.
+- **New status/buff** flags live on `scene.buffs.*Until` (party) or `e.*Until` (enemy:
+  slow/root/sleep/charm/burn/hex/curse); each read by the relevant damage/AI path.
+  Allies (`kind:'ally'`, from summon) and totems (`kind:'totem'`) tick in `update()`.
+- **Spellcraft**: talk to Xarthax → `Dialogue.attemptWeave()` sends the chat + a strict
+  JSON tool-prompt to the LLM → `extractJSON` → `validateSpellSpec` (normalizes school/
+  shape/kind synonyms; enforces a power-budget cost cap; **client-authoritative, never
+  eval**) → `registerCraftedSpell` (assigns id, paints a `rune_*` icon, adds to SPELLS +
+  `GameData.craftedSpells`, teaches a school-eligible hero). Persisted in save; re-
+  registered + re-painted on load. A spec spell needs NO new code — only data + the
+  executor primitives it already uses.
+
 ## Extension recipes
 
 - **New spell**: add to `SPELLS` (school/name/cost/desc/icon/fx) + icon painter in Boot +

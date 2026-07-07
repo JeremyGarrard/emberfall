@@ -251,6 +251,23 @@ const R3D = {
     }
   },
 
+  // conjured walls (Bulwark etc.) — added/removed at runtime
+  addTempWall(x, y) {
+    const h = 1.2;
+    const ground = this.world.terrainH(x + 0.5, y + 0.5);
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, h, 1),
+      new THREE.MeshLambertMaterial({ map: this.wallTex('rockwall') }));
+    mesh.position.set(x + 0.5, ground + h / 2, y + 0.5);
+    this.scene.add(mesh);
+    return mesh;
+  },
+
+  removeTempWall(mesh) {
+    this.scene.remove(mesh);
+    mesh.geometry.dispose();
+  },
+
   // ---------- per frame ----------
 
   render(state) {
