@@ -73,7 +73,7 @@ const VILLAGE = SETTLEMENTS[0];  // the road & terrain shelf key off Emberfall
 
 // billboard proportions: bigger vDiv = smaller sprite (bottom stays on the floor)
 const SPRITE_META = {
-  slime: { vDiv: 2.0 }, goblin: { vDiv: 1.45 }, wolf: { vDiv: 1.55 },
+  slime: { vDiv: 2.0 }, goblin: { vDiv: 1.45 }, wolf: { vDiv: 1.55 }, bear: { vDiv: 1.15 },
   chest: { vDiv: 2.3 }, fountain: { vDiv: 1.12 }, well: { vDiv: 1.5 }, lamp: { vDiv: 1.05 },
   tree: { vDiv: 0.85 }, pine: { vDiv: 0.8 }, sword: { vDiv: 1.9 },
   anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
@@ -441,31 +441,82 @@ class BootScene extends Phaser.Scene {
     WALL_ART_ALT[T_ROCK] = ART.rockwall2;
     WALL_ART_ALT[T_STONE] = ART.rockwall2;
 
-    // -- monsters & props --
+    // -- monsters (64px, shaded) --
     makeArt('slime', g => {
-      ell(g, 16, 22, 11, 8, '#35b06a');
-      ell(g, 13, 18, 4, 3, '#57d489');
-      ell(g, 12, 21, 2, 2.4, '#143d24');
-      ell(g, 20, 21, 2, 2.4, '#143d24');
-    });
+      const bg = g.createRadialGradient(26, 34, 4, 32, 42, 26);
+      bg.addColorStop(0, '#6fe0a0'); bg.addColorStop(0.6, '#35b06a'); bg.addColorStop(1, '#1e7a44');
+      g.fillStyle = bg;
+      g.beginPath(); g.moveTo(8, 44); g.bezierCurveTo(6, 22, 18, 14, 32, 16); g.bezierCurveTo(46, 14, 58, 22, 56, 44);
+      g.bezierCurveTo(56, 54, 44, 54, 32, 54); g.bezierCurveTo(20, 54, 8, 54, 8, 44); g.fill();
+      g.save(); g.globalAlpha = 0.5; ell(g, 24, 28, 8, 5, '#b8f8d0'); g.restore();       // sheen
+      ell(g, 24, 40, 4, 5, '#f4fff8'); ell(g, 40, 40, 4, 5, '#f4fff8');                   // eye whites
+      ell(g, 25, 41, 2, 2.6, '#0e2e1c'); ell(g, 41, 41, 2, 2.6, '#0e2e1c');               // pupils
+      ell(g, 24, 39.5, 0.9, 1, '#ffffff'); ell(g, 40, 39.5, 0.9, 1, '#ffffff');           // catchlights
+      g.strokeStyle = '#123a24'; g.lineWidth = 2; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(28, 48); g.quadraticCurveTo(32, 50, 36, 48); g.stroke();    // mouth
+      g.save(); g.globalAlpha = 0.4; g.fillStyle = '#1e7a44'; ell(g, 32, 54, 16, 3, '#1e7a44'); g.restore();
+    }, 64);
     makeArt('goblin', g => {
-      g.fillStyle = '#5f8f2f'; g.fillRect(10, 15, 12, 13);
-      g.fillStyle = '#4a731f'; g.fillRect(10, 24, 12, 4);
-      ell(g, 16, 10, 7, 7, '#6da036');
-      tri(g, [6, 10, 10, 5, 10, 13], '#6da036');
-      tri(g, [26, 10, 22, 5, 22, 13], '#6da036');
-      ell(g, 13, 9, 1.6, 1.6, '#d94040');
-      ell(g, 19, 9, 1.6, 1.6, '#d94040');
-      g.fillStyle = '#e8e0c8'; g.fillRect(13, 14, 2, 2); g.fillRect(17, 14, 2, 2);
-    });
+      // ears
+      g.fillStyle = '#5a8a2c'; tri(g, [12, 20, 2, 14, 14, 28]); tri(g, [52, 20, 62, 14, 50, 28]);
+      // body
+      const bd = g.createLinearGradient(0, 28, 0, 58); bd.addColorStop(0, '#6da036'); bd.addColorStop(1, '#42661c');
+      g.fillStyle = bd; g.fillRect(18, 30, 28, 28);
+      g.fillStyle = '#3a5518'; g.fillRect(18, 50, 28, 8);                                  // loincloth
+      // head with volume
+      const hd = g.createRadialGradient(26, 16, 3, 30, 22, 22); hd.addColorStop(0, '#88bd4e'); hd.addColorStop(1, '#4a731f');
+      g.fillStyle = hd; g.beginPath(); g.ellipse(32, 20, 15, 14, 0, 0, Math.PI * 2); g.fill();
+      // brow + red eyes
+      g.fillStyle = '#3a5518'; g.fillRect(20, 15, 24, 3);
+      ell(g, 26, 20, 3, 2.4, '#d94040'); ell(g, 38, 20, 3, 2.4, '#d94040');
+      ell(g, 26, 20, 1.2, 1.2, '#ffd0d0'); ell(g, 38, 20, 1.2, 1.2, '#ffd0d0');
+      // snout + tusks
+      g.fillStyle = '#5a8a2c'; ell(g, 32, 27, 5, 3, '#5a8a2c');
+      g.fillStyle = '#e8e0c8'; tri(g, [28, 28, 30, 34, 26, 30]); tri(g, [36, 28, 34, 34, 38, 30]);
+      g.save(); g.globalAlpha = 0.4; g.fillStyle = '#2a3f12'; ell(g, 32, 60, 14, 2.5, '#2a3f12'); g.restore();
+    }, 64);
     makeArt('wolf', g => {
-      ell(g, 14, 22, 11, 6, '#6f7480');
-      ell(g, 24, 17, 5.5, 5, '#7a8090');
-      tri(g, [21, 10, 23, 16, 28, 12], '#6f7480');
-      tri(g, [2, 18, 6, 23, 7, 16], '#6f7480');
-      g.fillStyle = '#4d515c'; g.fillRect(8, 26, 3, 6); g.fillRect(18, 26, 3, 6);
-      ell(g, 26, 16, 1.5, 1.5, '#d94040');
-    });
+      // body + haunches
+      const bd = g.createLinearGradient(0, 24, 0, 52); bd.addColorStop(0, '#868c98'); bd.addColorStop(1, '#565b66');
+      g.fillStyle = bd; g.beginPath(); g.ellipse(26, 40, 20, 12, 0, 0, Math.PI * 2); g.fill();
+      // legs
+      g.fillStyle = '#4d515c'; g.fillRect(14, 46, 5, 12); g.fillRect(24, 48, 5, 10); g.fillRect(36, 46, 5, 12);
+      // head lowered, snarling
+      const hd = g.createRadialGradient(44, 22, 2, 46, 28, 16); hd.addColorStop(0, '#9096a2'); hd.addColorStop(1, '#5a5f6a');
+      g.fillStyle = hd; g.beginPath(); g.ellipse(46, 28, 13, 11, 0, 0, Math.PI * 2); g.fill();
+      // ears
+      g.fillStyle = '#5a5f6a'; tri(g, [40, 18, 36, 6, 46, 16]); tri(g, [54, 18, 58, 6, 48, 16]);
+      // snout + fangs
+      g.fillStyle = '#6a6f7a'; g.beginPath(); g.moveTo(52, 26); g.lineTo(64, 30); g.lineTo(52, 34); g.fill();
+      g.fillStyle = '#f4f0e8'; tri(g, [56, 32, 58, 38, 54, 33]); tri(g, [60, 31, 61, 36, 57, 32]);
+      // red eye
+      ell(g, 44, 25, 2.4, 2, '#e04040'); ell(g, 44, 25, 1, 1, '#ffd0d0');
+      // fur streaks
+      g.save(); g.globalAlpha = 0.4; g.strokeStyle = '#3a3e48'; g.lineWidth = 1.5;
+      for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(14 + i * 6, 32); g.lineTo(16 + i * 6, 44); g.stroke(); } g.restore();
+      g.save(); g.globalAlpha = 0.4; g.fillStyle = '#3a3e48'; ell(g, 30, 58, 18, 2.5, '#3a3e48'); g.restore();
+    }, 64);
+    makeArt('bear', g => {
+      // hulking body
+      const bd = g.createRadialGradient(28, 28, 4, 32, 36, 30); bd.addColorStop(0, '#7a5636'); bd.addColorStop(1, '#432d1a');
+      g.fillStyle = bd; g.beginPath(); g.ellipse(32, 38, 22, 20, 0, 0, Math.PI * 2); g.fill();
+      // legs + arms with claws
+      g.fillStyle = '#3a2614'; g.fillRect(16, 50, 9, 12); g.fillRect(39, 50, 9, 12);
+      g.fillStyle = '#e8e0d0'; for (const bx of [16, 20, 39, 43]) tri(g, [bx, 62, bx + 2, 58, bx + 4, 62]);
+      // head
+      const hd = g.createRadialGradient(28, 12, 2, 32, 18, 18); hd.addColorStop(0, '#8a6440'); hd.addColorStop(1, '#4a3018');
+      g.fillStyle = hd; g.beginPath(); g.ellipse(32, 18, 14, 13, 0, 0, Math.PI * 2); g.fill();
+      // ears
+      ell(g, 22, 8, 4, 4, '#4a3018'); ell(g, 42, 8, 4, 4, '#4a3018');
+      ell(g, 22, 8, 2, 2, '#6a4830'); ell(g, 42, 8, 2, 2, '#6a4830');
+      // snout
+      g.fillStyle = '#6a4830'; ell(g, 32, 24, 6, 4, '#6a4830');
+      g.fillStyle = '#1a1008'; ell(g, 32, 22, 2.5, 2, '#1a1008');
+      // small angry eyes
+      ell(g, 27, 16, 1.8, 1.8, '#2a1a0e'); ell(g, 37, 16, 1.8, 1.8, '#2a1a0e');
+      ell(g, 26.5, 15.5, 0.7, 0.7, '#ffffff'); ell(g, 36.5, 15.5, 0.7, 0.7, '#ffffff');
+      g.save(); g.globalAlpha = 0.4; g.fillStyle = '#2a1c10'; ell(g, 32, 62, 22, 3, '#2a1c10'); g.restore();
+    }, 64);
     makeArt('chest', g => {
       g.fillStyle = '#7a4a1e'; g.fillRect(4, 15, 24, 13);
       g.fillStyle = '#9a6428'; g.fillRect(4, 10, 24, 7);
@@ -1781,7 +1832,10 @@ class WorldScene extends Phaser.Scene {
       const d = dist(x, y, START.x, START.y);
       const nearVillage = d < 22;
       if (enemies < 8 && !nearVillage) continue; // first few are guaranteed easy foes near the walls
-      add('enemy', nearVillage ? 'slime' : d < 52 ? 'goblin' : 'wolf', x, y);
+      // deep wilderness: cave bears prowl the far woods (seeded roll — one add()
+      // per iteration, so spawn count and uid order are unchanged)
+      const far = nearVillage ? 'slime' : d < 52 ? 'goblin' : (grand() < 0.35 ? 'bear' : 'wolf');
+      add('enemy', far, x, y);
       enemies++;
     }
 
@@ -2871,6 +2925,7 @@ class WorldScene extends Phaser.Scene {
   damageEnemy(e, dmg) {
     if (e.hp <= 0) return;
     e.hp -= dmg;
+    e.flinch = this.time.now + 160; // recoil pop + red flash (render3d)
     if (e.sleepUntil) e.sleepUntil = 0; // pain wakes the dreaming
     if (FX.ready) FX.burst(e.x, this.terrainH(e.x, e.y) + 0.55, e.y, '#ffcfa0', 6, { scale: 0.17, speed: 1.6, life: 0.35 });
     const p = this.projectEntity(e);
@@ -2884,7 +2939,14 @@ class WorldScene extends Phaser.Scene {
     GameData.gold += gold;
     const notes = this.grantXP(e.xp);
     this.goneUids.add(e.uid);
-    this.entities.splice(this.entities.indexOf(e), 1);
+    // fade-and-sink death: mark 'dying' (AI/targeting/queries all skip it) and
+    // remove after the animation. Rewards are granted now, so nothing's delayed.
+    e.kind = 'dying';
+    e.dying = this.time.now;
+    this.time.delayedCall(680, () => {
+      const i = this.entities.indexOf(e);
+      if (i >= 0) this.entities.splice(i, 1);
+    });
     if (this.target === e) this.target = null;
     // the Plague leaps to the nearest living thing
     if (e.burnHop && this.time.now < (e.burnUntil || 0)) {
@@ -2913,6 +2975,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   enemyStrike(e) {
+    e.lunge = this.time.now + 220; // hop toward the party (render3d)
     if (this.time.now < this.invulnUntil) return;
     const targets = GameData.party.filter(h => h.hp > 0);
     if (!targets.length) return;

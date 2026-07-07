@@ -225,23 +225,54 @@ const R3D = {
     return this.spriteMats[key];
   },
 
-  syncEntities(entities, time) {
+  syncEntities(state) {
+    const { entities, time, px, py } = state;
     const { terrainH } = this.world;
     const seen = new Set();
+    const anim = k => k === 'enemy' || k === 'ally' || k === 'dying' || k === 'decor';
     for (const e of entities) {
       seen.add(e);
       let s = this.sprites.get(e);
       const hgt = 1 / (e.vDiv || 1);
       if (!s) {
         let mat = this.spriteMat(e.art);
-        if (e.kind === 'decor') mat = mat.clone(); // decor pulses its own opacity
+        if (anim(e.kind)) mat = mat.clone(); // per-instance tint/opacity/scale
         s = new THREE.Sprite(mat);
         s.scale.set(hgt, hgt, 1);
         this.scene.add(s);
         this.sprites.set(e, s);
       }
-      s.position.set(e.x, terrainH(e.x, e.y) + hgt / 2 + (e.zOff || 0), e.y);
-      if (e.kind === 'decor') s.material.opacity = 0.55 + 0.25 * Math.sin(time * 0.0012 + e.x * 3);
+      let ex = e.x, ez = e.y, sc = hgt, yOff = e.zOff || 0;
+
+      if (e.kind === 'enemy' || e.kind === 'ally') {
+        yOff += Math.sin(time * 0.005 + (e.uid || 0) * 1.7) * hgt * 0.04; // idle bob
+        // hit flinch: brief scale-pop + red flash
+        if (e.flinch && time < e.flinch) {
+          const f = (e.flinch - time) / 160;
+          sc = hgt * (1 + 0.2 * f);
+          s.material.color.setRGB(1, 1 - 0.55 * f, 1 - 0.55 * f);
+        } else if (s.material.color.r !== 1 || s.material.color.g !== 1) {
+          s.material.color.setRGB(1, 1, 1);
+        }
+        // attack lunge: hop toward the party
+        if (e.lunge && time < e.lunge) {
+          const l = Math.sin(((e.lunge - time) / 220) * Math.PI) * 0.35;
+          const d = Math.hypot(px - e.x, py - e.y) || 1;
+          ex += (px - e.x) / d * l; ez += (py - e.y) / d * l;
+        }
+        s.material.opacity = 1;
+      } else if (e.kind === 'dying') {
+        const p = Math.min(1, (time - e.dying) / 650); // fade, sink, shrink, tip
+        s.material.opacity = 1 - p;
+        s.material.color.setRGB(1, 1 - 0.4 * p, 1 - 0.4 * p);
+        sc = hgt * (1 - 0.35 * p);
+        yOff -= p * hgt * 0.5;
+      } else if (e.kind === 'decor') {
+        s.material.opacity = 0.55 + 0.25 * Math.sin(time * 0.0012 + e.x * 3);
+      }
+
+      if (s.scale.x !== sc) s.scale.set(sc, sc, 1);
+      s.position.set(ex, terrainH(e.x, e.y) + sc / 2 + yOff, ez);
     }
     for (const [e, s] of this.sprites) {
       if (!seen.has(e)) {
@@ -278,7 +309,7 @@ const R3D = {
       state.px + Math.cos(state.angle) * cp,
       state.camZ + sp,
       state.py + Math.sin(state.angle) * cp);
-    this.syncEntities(state.entities, state.time);
+    this.syncEntities(state);
     FX.update(state.time);
     for (const [d, m] of this.doorMeshes) m.visible = !d.open;
     this.skyMesh.position.copy(this.camera.position);

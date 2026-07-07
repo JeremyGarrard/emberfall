@@ -85,8 +85,8 @@ Makes gold matter and adds build depth. 🔒 EPIC 4 for the town zones.
 ## EPIC 6 — Content: monsters, quests, NPCs → `design/LORE.md`
 Fills the world. Mostly unblocked; authoring against the lore bible.
 
-- **6.1 [S] Bear** (deep-forest monster). Old ticket 3 — ENEMY_TYPES + billboard
-  + append spawn.
+- **6.1 ✅ Cave Bear** — ENEMY_TYPES.bear (hp68/atk13), 64px shaded billboard,
+  folded into the deep-wilderness spawn roll (seeded, no uid shift).
 - **6.2 [M] Goblin shaman** (ranged caster enemy; needs projectileSpell 🔒2.0).
 - **6.3 [S] Emberspawn + wisp** monster art/stats for later zones.
 - **6.4 [M] Quest #2 "The Wolfmother's Den"** (Marta/Maren; lostblade pattern).
@@ -94,15 +94,18 @@ Fills the world. Mostly unblocked; authoring against the lore bible.
 - **6.6 [S] Inject LORE_COMMON** into every villager system prompt; give
   existing NPCs faction-aware facts. LORE.md.
 
-## EPIC 7 — Polish (all unblocked, all S)
+## EPIC 7 — Polish
 - **7.1** Damage variance & crits (8% ×2, one shared helper).
 - **7.2** WebAudio synth SFX (steps/casts/hits, no asset files; mute on 'U', save it).
-- **7.3** Hit flinch on billboards (scale-pop + red tint + shake).
-- **7.4** Enemy death fade-and-sink (0.6s).
+- **7.3 ✅** Hit flinch on billboards (scale-pop + red tint) — in `R3D.syncEntities`.
+- **7.4 ✅** Enemy death fade-and-sink — `killEnemy` marks `kind:'dying'`, animates,
+  removes after 680ms. Plus idle bob + attack lunge, same system.
 - **7.5** Item tooltips (parchment, follows pointer).
 - **7.6** Potion hotkeys (5/6) + counts on HUD.
 - **7.7** Minimap quest-target ping (pulsing star).
 - **7.8** Drag-and-drop inventory.
+- **7.9** Monster art now 64px shaded (slime/goblin/wolf/bear) — apply the same
+  painterly lift to props/chests/trees if desired.
 
 ---
 

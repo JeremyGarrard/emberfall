@@ -259,6 +259,7 @@ const ENEMY_TYPES = {
   slime:  { name: 'Slime',     hp: 16, atk: 4, def: 0, xp: 8,  gold: [2, 6],  speed: 1.2, cd: 1600 },
   goblin: { name: 'Goblin',    hp: 26, atk: 6, def: 1, xp: 14, gold: [4, 10], speed: 1.8, cd: 1300 },
   wolf:   { name: 'Dire Wolf', hp: 40, atk: 9, def: 2, xp: 24, gold: [8, 16], speed: 2.6, cd: 1100 },
+  bear:   { name: 'Cave Bear', hp: 68, atk: 13, def: 3, xp: 44, gold: [14, 28], speed: 2.1, cd: 1400 },
 };
 
 function xpForLevel(level) { return level * 40; }
