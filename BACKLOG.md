@@ -59,20 +59,24 @@ The marquee LLM feature — **working end-to-end with the local LLM.**
 - **3.6 [S] Polish:** spellbook page slightly crowds long names behind the icon;
   bump text x. Xarthax could show the woven spec's stats before charging.
 
-## EPIC 4 — Multiple maps + world map → `design/WORLD.md`
-Biggest architectural lift. Do the refactor before authoring many zones.
+## EPIC 4 — Multiple maps + world map → `design/WORLD.md`  ◐ CORE DONE
 
-- **4.1 [L] ZONES refactor.** Extract the implicit single map into a ZONES
-  registry; WorldScene takes a zone descriptor; wrap current world as
-  `embervale`. Pure refactor, no behavior change. **Foundational.**
-- **4.2 [M] Save v3 + per-zone zoneState + migration** from v2. 🔒4.1
-- **4.3 [M] Edge-exit transitions** between two zones (embervale ↔ pinereach
-  stub). 🔒4.1
-- **4.4 [L] Author Pinereach** (forest theme; pulls in EPIC 6 monsters/quests).
-  🔒4.1
-- **4.5 [L] WorldMapScene** — parchment map of Averron, node travel, unlocks,
-  fog-of-war. 🔒4.1
-- **4.6 [M] Town-theme zones** (no monster spawns, shop props). 🔒4.1, feeds EPIC 5.
+- **4.1 ✅ ZONES registry + zone-driven generation.** `ZONES` in data.js;
+  buildMap/buildHeights/buildEntities/inVillage branch home vs. wild;
+  `R3D.buildZone` tears down + rebuilds the 3D scene (zoneGroup); minimap +
+  spawn zone-aware.
+- **4.2 ✅ Save v3 + per-zone zoneState + migration.** Each zone keeps its own
+  seed + gone-list; older saves migrate (fresh world, party kept).
+- **4.3 ✅ Coach travel** between zones (Jori the Coachman + carriage post;
+  dialogue travel buttons, fares in `TRAVEL`). Replaces the edge-exit idea —
+  cleaner. Fade transition, arrive at each zone's coach clearing.
+- **4.4 ✅ Author Pinereach** (dense pine forest, wolf/bear-heavy, own palette).
+  More content (quests/unique props) still welcome.
+- **4.5 [L] WorldMapScene** — parchment map of Averron, node travel, fog-of-war.
+  (The coach covers travel for now; a map screen is the visual upgrade.)
+- **4.6 [M] Town-theme zones** (no monster spawns, shop props). 🔒 feeds EPIC 5.
+- **4.7 [S] More zones** — add a `ZONES` entry + a `TRAVEL` route; wild-zone gen
+  already supports it. Greymire (marsh) is the lore's next stop.
 
 ## EPIC 5 — Towns, guilds, training, upgrades → `design/PROGRESSION.md`
 Makes gold matter and adds build depth. 🔒 EPIC 4 for the town zones.

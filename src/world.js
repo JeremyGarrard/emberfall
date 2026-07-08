@@ -79,6 +79,7 @@ const SPRITE_META = {
   tree: { vDiv: 0.85 }, pine: { vDiv: 0.8 }, sword: { vDiv: 1.9 },
   anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
   spellwright: { vDiv: 1.35 }, golem: { vDiv: 1.1 }, wisp: { vDiv: 2.0 }, totemArt: { vDiv: 1.6 },
+  coachman: { vDiv: 1.32 }, carriage: { vDiv: 0.82 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
   innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
   campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
@@ -1337,6 +1338,30 @@ class BootScene extends Phaser.Scene {
       tri(g, [10, 6, 16, 1, 22, 6], '#8a6238');
     });
 
+    // coachman + carriage (the travel post)
+    makeArt('coachman', g => {
+      g.fillStyle = '#4a3a28'; g.fillRect(9, 15, 14, 15);            // driving coat
+      g.fillStyle = '#6a5238'; g.fillRect(9, 15, 14, 3);
+      ell(g, 16, 10, 5.5, 5.5, '#e0b48e');                          // face
+      g.fillStyle = '#2a2018'; ell(g, 16, 6, 7, 3, '#2a2018');      // tricorne hat
+      g.fillRect(10, 5, 12, 3);
+      g.fillStyle = '#c9a227'; g.fillRect(9, 20, 14, 1);            // coat trim
+      ell(g, 14, 10, 1, 1.2, '#2a2018'); ell(g, 18, 10, 1, 1.2, '#2a2018');
+    });
+    makeArt('carriage', g => {
+      // horse
+      g.fillStyle = '#5a4030'; g.fillRect(1, 16, 9, 7); ell(g, 3, 15, 3, 3, '#5a4030');
+      g.fillStyle = '#3a2a1e'; g.fillRect(3, 22, 1.5, 6); g.fillRect(7, 22, 1.5, 6);
+      // cabin
+      g.fillStyle = '#7a4a2a'; g.fillRect(12, 10, 17, 13);
+      g.fillStyle = '#5a3418'; g.fillRect(12, 10, 17, 3);
+      g.fillStyle = '#a0c0d0'; g.fillRect(15, 14, 5, 5); g.fillRect(22, 14, 5, 5); // windows
+      g.fillStyle = '#c9a227'; g.fillRect(12, 21, 17, 2);
+      // wheels
+      g.fillStyle = '#3a2a1a'; ell(g, 16, 26, 4, 4, '#3a2a1a'); ell(g, 25, 26, 4, 4, '#3a2a1a');
+      g.fillStyle = '#6a5238'; ell(g, 16, 26, 1.5, 1.5, '#6a5238'); ell(g, 25, 26, 1.5, 1.5, '#6a5238');
+    });
+
     this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
@@ -1365,24 +1390,20 @@ class WorldScene extends Phaser.Scene {
   constructor() { super('World'); }
 
   create() {
-    // resume a saved journey if one exists: the stored seed regrows the very
-    // same vale; looted chests and slain monsters stay gone (by uid)
+    // resume a saved journey if one exists. Each zone stores its own seed +
+    // gone-list in GameData.zoneState, so every map regrows exactly as you left it.
     this.save = null;
     try { this.save = JSON.parse(localStorage.getItem('emberfall-save')); } catch (e) {}
-    if (this.save && this.save.v === 1) {
-      // v1 predates the Eastmarch camp: new spawns shifted entity uids, so the
-      // old gone-list can't be trusted. Keep the party's progress; regrow the vale.
-      this.save.seed = (Math.random() * 1e9) >>> 0;
-      this.save.gone = [];
-      this.save.px = START.x; this.save.py = START.y; this.save.angle = 0;
-      this.save.flying = false; this.save.eyeZ = 0.5;
-      this.save.v = 2;
+    if (this.save && this.save.v !== 3) {
+      // migrate any older save: keep the party's progress, regrow the world fresh
+      // (spawn order shifted across versions, so old per-map gone-lists can't carry)
+      this.save = {
+        v: 3, gold: this.save.gold, inventory: this.save.inventory,
+        flags: this.save.flags, quests: this.save.quests, party: this.save.party,
+        crafted: this.save.crafted, zone: 'embervale', zoneState: {},
+      };
       this._migrated = true;
     }
-    if (this.save && this.save.v !== 2) this.save = null;
-    this.worldSeed = this.save ? this.save.seed : (Math.random() * 1e9) >>> 0;
-    setSeed(this.worldSeed);
-    this.goneUids = new Set(this.save ? this.save.gone : []);
     if (this.save) {
       const s = this.save;
       GameData.gold = s.gold;
@@ -1391,28 +1412,17 @@ class WorldScene extends Phaser.Scene {
       GameData.quests = s.quests;
       if (Array.isArray(s.crafted)) GameData.craftedSpells = s.crafted;
       s.party.forEach((sp, i) => Object.assign(GameData.party[i], sp));
+      GameData.zone = s.zone || 'embervale';
+      GameData.zoneState = s.zoneState || {};
     }
 
-    this.buildMap();
-    this.buildEntities();
-    this.entities = this.entities.filter(e => !this.goneUids.has(e.uid));
+    this.loadZoneData(GameData.zone);
 
     // real-3D view: three.js canvas underneath, this Phaser canvas (transparent)
     // draws every UI element on top
     this.game.canvas.style.position = 'relative';
     this.game.canvas.style.zIndex = '1';
-    R3D.init(document.getElementById('game'), {
-      map: this.map, mapW: MAP_W, mapH: MAP_H,
-      heights: this.heights,
-      terrainH: (x, y) => this.terrainH(x, y),
-      doors: this.doors,
-      buildings: BUILDINGS.map(b => ({
-        x1: VILLAGE.x1 + b.x1, y1: VILLAGE.y1 + b.y1,
-        x2: VILLAGE.x1 + b.x2, y2: VILLAGE.y1 + b.y2,
-        h: 1.25, color: b.color,
-      })),
-      bridges: this.bridgeCells, bridgeH: BRIDGE_H,
-    });
+    R3D.init(document.getElementById('game'), this.zoneWorldDesc());
     R3D.syncSize(this.game.canvas);
     this.scale.on('resize', () => R3D.syncSize(this.game.canvas));
 
@@ -1422,7 +1432,8 @@ class WorldScene extends Phaser.Scene {
       stroke: '#0a0c12', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(951);
 
-    this.px = START.x; this.py = START.y;
+    const [spx, spy] = this.spawnPoint();
+    this.px = spx; this.py = spy;
     this.angle = 0; // radians; 0 = east
     this.pitch = 0; // vertical look, radians
     this.eyeZ = 0.5;      // camera height above local terrain (0.5 = on foot)
@@ -1450,12 +1461,8 @@ class WorldScene extends Phaser.Scene {
       }
     }
 
-    if (this.save) {
-      this.px = this.save.px; this.py = this.save.py; this.angle = this.save.angle || 0;
-      this.flying = !!this.save.flying;
-      this.eyeZ = this.save.eyeZ || 0.5;
-      this.flyCaster = this.save.flyCaster != null ? this.save.flyCaster : -1;
-    }
+    // v3 saves don't store position/flight — you always resume standing at the
+    // saved zone's spawn point (set above via spawnPoint()), never mid-air.
     this.dialogOpen = false;
     this.nearVillager = null;
     this.dead = false;
@@ -1565,21 +1572,74 @@ class WorldScene extends Phaser.Scene {
 
   saveGame() {
     if (this.dead) return;
+    // fold the current zone's live gone-list back into zoneState before saving
+    GameData.zoneState[GameData.zone] = { seed: this.worldSeed, gone: [...this.goneUids] };
     const party = GameData.party.map(h => ({
       level: h.level, xp: h.xp, hp: h.hp, maxHp: h.maxHp, mp: h.mp, maxMp: h.maxMp,
       atk: h.atk, def: h.def, spells: h.spells.slice(), quick: h.quick,
       weapon: h.weapon, armor: h.armor, readyAt: 0,
     }));
     const s = {
-      v: 2, seed: this.worldSeed, // v2 = Eastmarch-era uid ordering
-      px: this.px, py: this.py, angle: this.angle,
-      flying: this.flying, eyeZ: this.eyeZ, flyCaster: this.flyCaster,
+      v: 3,
       gold: GameData.gold, inventory: GameData.inventory,
       flags: GameData.flags, quests: GameData.quests,
-      party, gone: [...this.goneUids],
-      crafted: GameData.craftedSpells,
+      party, crafted: GameData.craftedSpells,
+      zone: GameData.zone, zoneState: GameData.zoneState,
     };
     try { localStorage.setItem('emberfall-save', JSON.stringify(s)); } catch (e) {}
+  }
+
+  // ---------- zones & travel (design/WORLD.md) ----------
+
+  spawnPoint() { return this.zone.home ? [START.x, START.y] : this.zone.arrive.slice(); }
+
+  loadZoneData(zoneId) {
+    GameData.zone = zoneId;
+    this.zone = ZONES[zoneId];
+    const st = GameData.zoneState[zoneId] ||
+      (GameData.zoneState[zoneId] = { seed: (Math.random() * 1e9) >>> 0, gone: [] });
+    this.worldSeed = st.seed;
+    setSeed(this.worldSeed);
+    this.goneUids = new Set(st.gone);
+    this.buildMap();
+    this.buildEntities();
+    this.entities = this.entities.filter(e => !this.goneUids.has(e.uid));
+  }
+
+  zoneWorldDesc() {
+    return {
+      map: this.map, mapW: MAP_W, mapH: MAP_H,
+      heights: this.heights, terrainH: (x, y) => this.terrainH(x, y),
+      doors: this.doors,
+      buildings: this.zone.home ? BUILDINGS.map(b => ({
+        x1: VILLAGE.x1 + b.x1, y1: VILLAGE.y1 + b.y1,
+        x2: VILLAGE.x1 + b.x2, y2: VILLAGE.y1 + b.y2, h: 1.25, color: b.color,
+      })) : [],
+      bridges: this.bridgeCells, bridgeH: BRIDGE_H,
+      palette: this.zone.palette || null,
+    };
+  }
+
+  travelTo(zoneId) {
+    if (zoneId === GameData.zone || !ZONES[zoneId]) return;
+    // stash the zone we're leaving, regrow the destination, rebuild the 3D scene
+    GameData.zoneState[GameData.zone] = { seed: this.worldSeed, gone: [...this.goneUids] };
+    this.cameras.main.fadeOut(300, 6, 8, 14);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.loadZoneData(zoneId);
+      R3D.buildZone(this.zoneWorldDesc());
+      this.buildMinimap();
+      const [ax, ay] = this.zone.arrive;
+      this.px = ax; this.py = ay; this.angle = 0; this.pitch = 0;
+      this.eyeZ = 0.5; this.flying = false; this.landing = false;
+      this.target = null;
+      this.tempWalls = [];
+      this.invulnUntil = this.time.now + 2000;
+      this.saveGame();
+      this.refreshHUD();
+      this.cameras.main.fadeIn(300, 6, 8, 14);
+      this.toast(`The coach arrives at ${this.zone.name}.`);
+    });
   }
 
   // ---------- map & entities ----------
@@ -1591,6 +1651,28 @@ class WorldScene extends Phaser.Scene {
     for (let x = 0; x < MAP_W; x++) { this.map[0][x] = T_ROCK; this.map[MAP_H - 1][x] = T_ROCK; }
     for (let y = 0; y < MAP_H; y++) { this.map[y][0] = T_ROCK; this.map[y][MAP_W - 1] = T_ROCK; }
 
+    this.doors = [];
+    this.bridgeSet = new Set();
+    this.bridgeCells = [];
+
+    if (this.zone.home) this.buildHomeMap();
+    else this.buildWildMap();
+
+    this.buildHeights();
+  }
+
+  buildWildMap() {
+    // a themed wilderness: one pond, no settlements. Trees/enemies come from
+    // buildEntities; the coach clearing is flattened in buildHeights.
+    for (const [cx, cy, rx, ry] of [[64, 20, 7, 5], [40, 54, 6, 4]]) {
+      for (let y = 1; y < MAP_H - 1; y++) for (let x = 1; x < MAP_W - 1; x++) {
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        if (dx * dx + dy * dy <= 1) this.map[y][x] = T_WATER;
+      }
+    }
+  }
+
+  buildHomeMap() {
     // (hills are real terrain now — see buildHeights)
 
     // lakes: open water you can see (and shoot) across, but not cross
@@ -1618,7 +1700,6 @@ class WorldScene extends Phaser.Scene {
       ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
       K: T_DIRT, X: T_DIRT, // Eastmarch: campfire & tents stand on dirt (props supply the art)
     };
-    this.doors = [];
     for (const s of SETTLEMENTS) {
       s.layout.forEach((row, ry) => {
         for (let rx = 0; rx < row.length; rx++) {
@@ -1633,7 +1714,6 @@ class WorldScene extends Phaser.Scene {
     // River cells under the road keep their water; a plank deck (bridgeSet) spans
     // them so the river flows on unbroken beneath the crossing.
     const roadY = VILLAGE.y1 + 8; // the gate row
-    this.bridgeSet = new Set();
     for (let x = VILLAGE.x2 + 1; x < SETTLEMENTS[1].x1 && x < MAP_W - 1; x++) {
       for (let y = roadY - 1; y <= roadY + 1; y++) {
         const t = this.map[y][x];
@@ -1643,8 +1723,6 @@ class WorldScene extends Phaser.Scene {
       }
     }
     this.bridgeCells = [...this.bridgeSet].map(s => s.split(',').map(Number));
-
-    this.buildHeights();
   }
 
   // ---------- terrain (the actual hills) ----------
@@ -1676,24 +1754,35 @@ class WorldScene extends Phaser.Scene {
       }
     }
 
-    // each settlement sits on a leveled shelf; fade the flattening outward
-    for (const st of SETTLEMENTS) {
-      for (let y = 0; y < H1; y++) {
-        for (let x = 0; x < W1; x++) {
-          const dx = Math.max(st.x1 - x, 0, x - (st.x2 + 1));
-          const dy = Math.max(st.y1 - y, 0, y - (st.y2 + 1));
-          const d = Math.hypot(dx, dy);
-          if (d < 5) h[y][x] *= d / 5;
+    if (this.zone.home) {
+      // each settlement sits on a leveled shelf; fade the flattening outward
+      for (const st of SETTLEMENTS) {
+        for (let y = 0; y < H1; y++) {
+          for (let x = 0; x < W1; x++) {
+            const dx = Math.max(st.x1 - x, 0, x - (st.x2 + 1));
+            const dy = Math.max(st.y1 - y, 0, y - (st.y2 + 1));
+            const d = Math.hypot(dx, dy);
+            if (d < 5) h[y][x] *= d / 5;
+          }
         }
       }
-    }
-    // keep the east road a gentle valley route
-    const roadY = VILLAGE.y1 + 8;
-    for (let y = 0; y < H1; y++) {
-      for (let x = 0; x < W1; x++) {
-        if (x >= VILLAGE.x2 && x <= 84) {
-          const d = Math.abs(y - (roadY + 0.5));
-          if (d < 4) h[y][x] *= 0.25 + 0.75 * (d / 4);
+      // keep the east road a gentle valley route
+      const roadY = VILLAGE.y1 + 8;
+      for (let y = 0; y < H1; y++) {
+        for (let x = 0; x < W1; x++) {
+          if (x >= VILLAGE.x2 && x <= 84) {
+            const d = Math.abs(y - (roadY + 0.5));
+            if (d < 4) h[y][x] *= 0.25 + 0.75 * (d / 4);
+          }
+        }
+      }
+    } else {
+      // wild zones: level a clearing around the coach arrival point
+      const [ax, ay] = this.zone.arrive;
+      for (let y = 0; y < H1; y++) {
+        for (let x = 0; x < W1; x++) {
+          const d = Math.hypot(x - ax, y - ay);
+          if (d < 7) h[y][x] *= Math.min(1, d / 7);
         }
       }
     }
@@ -1739,6 +1828,12 @@ class WorldScene extends Phaser.Scene {
 
   // true inside (or within pad of) any walled settlement — the monster sanctuary
   inVillage(x, y, pad = 0) {
+    // sanctuary test — monsters never enter. Home: any settlement. Wild: the
+    // small clearing around the coach so you don't land in a bear's lap.
+    if (this.zone && !this.zone.home) {
+      const [ax, ay] = this.zone.arrive;
+      return Math.hypot(x - ax, y - ay) < 4 + pad;
+    }
     return SETTLEMENTS.some(s =>
       x >= s.x1 - pad && x <= s.x2 + 1 + pad &&
       y >= s.y1 - pad && y <= s.y2 + 1 + pad);
@@ -1765,14 +1860,27 @@ class WorldScene extends Phaser.Scene {
       return e;
     };
 
-    // forest regions — oak and pine woods with clearings, plus scattered loners
+    // a villager-kind entity pushed with a fixed out-of-band uid (like Xarthax) —
+    // consumes no counter uid, so it never shifts other entities' gone-lists
+    const pushNPC = (cfg, gx, gy, uid) => {
+      this.entities.push({
+        kind: 'villager', type: cfg.art, art: cfg.art, gx, gy,
+        x: gx + 0.5, y: gy + 0.5, vDiv: SPRITE_META[cfg.art].vDiv, uid,
+        name: cfg.name, villager: cfg, chat: [],
+      });
+    };
+
+    // forest regions — oak and pine woods with clearings, plus scattered loners.
+    // Wild zones (Pinereach) are dense and pine-heavy.
     const treeOk = (x, y) =>
       x >= 2 && y >= 2 && x < MAP_W - 2 && y < MAP_H - 2 &&
       this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) && !this.entityAt(x, y);
-    for (let f = 0; f < 9; f++) {
+    const dense = this.zone.dense;
+    const regions = dense ? 15 : 9, loners = dense ? 140 : 70, pineBias = dense ? 0.8 : 0.4;
+    for (let f = 0; f < regions; f++) {
       const fx = gri(8, MAP_W - 9), fy = gri(6, MAP_H - 7);
-      const r = gri(4, 7), pineWood = grand() < 0.4;
-      const tries = Math.floor(r * r * 1.6);
+      const r = gri(4, dense ? 8 : 7), pineWood = grand() < pineBias;
+      const tries = Math.floor(r * r * (dense ? 2.2 : 1.6));
       for (let i = 0; i < tries; i++) {
         const a = grand() * Math.PI * 2, rr = grand() * r;
         const x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
@@ -1781,10 +1889,22 @@ class WorldScene extends Phaser.Scene {
         add('tree', pineWood === main ? 'pine' : 'tree', x, y);
       }
     }
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < loners; i++) {
       const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
-      if (treeOk(x, y)) add('tree', grand() < 0.7 ? 'tree' : 'pine', x, y);
+      if (treeOk(x, y)) add('tree', grand() < (dense ? 0.25 : 0.7) ? 'tree' : 'pine', x, y);
     }
+
+    // a coach post stands in every travelled zone (fixed uids 999900/999901)
+    const [cax, cay] = this.zone.arrive;
+    const cpx = Math.round(cax - 0.5), cpy = Math.round(cay - 0.5);
+    pushNPC(COACHMAN, cpx, cpy, 999900);
+    this.entities.push({
+      kind: 'prop', type: 'carriage', art: 'carriage',
+      gx: cpx + 1, gy: cpy, x: cpx + 1.5, y: cpy + 0.5,
+      vDiv: SPRITE_META.carriage.vDiv, uid: 999901,
+    });
+
+    if (!this.zone.home) { this.buildWildEntities(add); return; }
 
     // furniture & street dressing (coordinates relative to the village stamp)
     const vx = VILLAGE.x1, vy = VILLAGE.y1;
@@ -1876,6 +1996,27 @@ class WorldScene extends Phaser.Scene {
         add('enemy', 'goblin', gx2, gy2);
         guards++;
       }
+    }
+  }
+
+  // wild-zone contents (Pinereach): chests in the woods, wolves + bears prowling
+  buildWildEntities(add) {
+    const [ax, ay] = this.zone.arrive;
+    let placed = 0, guard = 0;
+    while (placed < 12 && guard++ < 2500) {
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
+      if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 3) &&
+          dist(x, y, ax, ay) > 10 && !this.entityAt(x, y)) {
+        add('chest', 'chest', x, y); placed++;
+      }
+    }
+    let enemies = 0; guard = 0;
+    while (enemies < 34 && guard++ < 6000) {
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
+      if (this.map[y][x] !== T_GRASS || this.inVillage(x, y, 6) || this.entityAt(x, y)) continue;
+      const roll = grand();
+      add('enemy', roll < 0.5 ? 'wolf' : roll < 0.82 ? 'bear' : 'goblin', x, y);
+      enemies++;
     }
   }
 
@@ -2560,11 +2701,13 @@ class WorldScene extends Phaser.Scene {
         }
         break;
       }
-      case 'recall':
+      case 'recall': {
         this.flying = false; this.landing = false; this.eyeZ = 0.5; this.pitch = 0;
-        this.px = START.x; this.py = START.y;
-        this.toast('The world folds — you stand at the fountain.');
+        const [rx, ry] = this.spawnPoint();
+        this.px = rx; this.py = ry;
+        this.toast('The world folds — you stand at safe ground.');
         break;
+      }
       case 'execute':
         victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round((v.maxHp - v.hp) * (ef.factor || 0.4)))));
         break;
@@ -3021,7 +3164,8 @@ class WorldScene extends Phaser.Scene {
     this.time.delayedCall(2200, () => {
       GameData.gold = Math.floor(GameData.gold / 2);
       GameData.party.forEach(h => { h.hp = Math.ceil(h.maxHp * 0.5); h.mp = h.maxMp; h.readyAt = 0; });
-      this.px = START.x; this.py = START.y; this.angle = 0;
+      const [dpx, dpy] = this.spawnPoint();
+      this.px = dpx; this.py = dpy; this.angle = 0;
       this.pitch = 0; this.eyeZ = 0.5; this.flying = false; this.landing = false;
       this.invulnUntil = this.time.now + 3000;
       shade.destroy(); msg.destroy();
@@ -3370,6 +3514,9 @@ class WorldScene extends Phaser.Scene {
 
   buildMinimap() {
     const S = 2;
+    // idempotent: tear down a previous zone's map so travel can rebuild
+    if (this.mmContainer) { this.mmContainer.destroy(); this.mmContainer = null; }
+    if (this.textures.exists('mmap')) this.textures.remove('mmap');
     const tex = this.textures.createCanvas('mmap', MAP_W * S, MAP_H * S);
     const g = tex.getContext();
     const colors = {

@@ -192,6 +192,37 @@ const GameData = {
   quests: { lostblade: 'available' }, // available -> active -> found -> done
   inventory: new Array(32).fill(null),
   craftedSpells: [], // player-invented spell specs (persisted; re-registered on load)
+  zone: 'embervale',      // current map
+  zoneState: {},          // { [zoneId]: { seed, gone:[] } } — each map remembers itself
+};
+
+// ---- zones: separate maps you travel between by coach (design/WORLD.md) ----
+// home = the Emberfall vale (village, camp, river, quest). wild = a themed
+// wilderness. `arrive` is where you land when a coach drops you here.
+const ZONES = {
+  embervale: {
+    name: 'Embervale', home: true, arrive: [20.5, 36.5],
+  },
+  pinereach: {
+    name: 'Pinereach', home: false, arrive: [12.5, 36.5],
+    dense: true, // thick pine forest
+    palette: { fog: 0x8ea89a, fogNear: 7, fogFar: 26, hemiSky: 0x9ab0c4,
+               hemiGround: 0x22331c, hemiInt: 0.72, sun: 0xdfe6c4, sunInt: 0.6, water: 0x2c5240 },
+  },
+};
+
+// coach routes: where each zone's coachman can send you, and the fare
+const TRAVEL = {
+  embervale: [{ to: 'pinereach', name: 'Pinereach', price: 40 }],
+  pinereach: [{ to: 'embervale', name: 'Emberfall', price: 0 }], // ride home is on the house
+};
+
+// the coachman NPC (placed per-zone in buildEntities; talking opens the travel menu)
+const COACHMAN = {
+  id: 'coachman', name: 'Jori the Coachman', art: 'coachman', specialty: 'coach',
+  home: 'the carriage post',
+  persona: 'a cheerful, road-worn carriage driver who ferries folk between the frontier holds. You know every rut and toll on the roads and love to talk of far places.',
+  greeting: 'Climb aboard, friends! My team\'s rested and the roads are open. Where can I carry you today?',
 };
 
 // the party sets out with a modest kit

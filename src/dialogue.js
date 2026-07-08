@@ -71,6 +71,29 @@ const Dialogue = {
     // spellcraft hook (Xarthax weaves described spells into the world)
     this.crow.style.display = entity.villager.id === 'xarthax' ? 'flex' : 'none';
 
+    // coach hook: the coachman offers rides to other zones
+    const trow = document.getElementById('dlg-travel');
+    trow.innerHTML = '';
+    if (entity.villager.specialty === 'coach') {
+      const routes = (typeof TRAVEL !== 'undefined' && TRAVEL[GameData.zone]) || [];
+      for (const r of routes) {
+        const btn = document.createElement('button');
+        const afford = GameData.gold >= r.price;
+        btn.textContent = `→ Ride to ${r.name}` + (r.price ? ` (${r.price} gold)` : ' (free)');
+        btn.disabled = !afford;
+        btn.addEventListener('click', () => {
+          if (GameData.gold < r.price) return;
+          GameData.gold -= r.price;
+          this.close();
+          this.world.travelTo(r.to);
+        });
+        trow.appendChild(btn);
+      }
+      trow.style.display = routes.length ? 'flex' : 'none';
+    } else {
+      trow.style.display = 'none';
+    }
+
     // quest hooks (Bram's Lost Blade)
     this.qrow.style.display = 'none';
     if (entity.villager.id === 'bram') {

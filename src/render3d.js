@@ -42,11 +42,42 @@ const R3D = {
 
     this.camera = new THREE.PerspectiveCamera(68, 960 / 510, 0.08, 140);
 
-    // clear-afternoon light
-    this.scene.add(new THREE.HemisphereLight(0xbfd8f8, 0x4a6a3a, 0.95));
-    const sun = new THREE.DirectionalLight(0xfff2d8, 0.8);
-    sun.position.set(-40, 60, -25);
-    this.scene.add(sun);
+    // persistent lights (tinted per zone in buildZone)
+    this.hemi = new THREE.HemisphereLight(0xbfd8f8, 0x4a6a3a, 0.95);
+    this.scene.add(this.hemi);
+    this.sun = new THREE.DirectionalLight(0xfff2d8, 0.8);
+    this.sun.position.set(-40, 60, -25);
+    this.scene.add(this.sun);
+
+    this.spriteMats = {};
+    this.sprites = new Map();
+    this.zoneGroup = null;
+    FX.init(this.scene);
+
+    this.buildZone(world);
+    this.ready = true;
+  },
+
+  // (re)build all zone geometry; called on init and on every travel
+  buildZone(world) {
+    this.world = world;
+    // tear down the previous zone
+    if (this.zoneGroup) {
+      this.scene.remove(this.zoneGroup);
+      this.zoneGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    }
+    for (const [, s] of this.sprites) this.scene.remove(s);
+    this.sprites.clear();
+    this.zoneGroup = new THREE.Group();
+    this.scene.add(this.zoneGroup);
+
+    const pal = (world.palette) || {};
+    this.scene.fog = new THREE.Fog(pal.fog !== undefined ? pal.fog : 0xc6d8ec, pal.fogNear || 10, pal.fogFar || 36);
+    if (pal.hemiSky !== undefined) this.hemi.color.setHex(pal.hemiSky);
+    if (pal.hemiGround !== undefined) this.hemi.groundColor.setHex(pal.hemiGround);
+    this.hemi.intensity = pal.hemiInt || 0.95;
+    this.sun.color.setHex(pal.sun || 0xfff2d8);
+    this.sun.intensity = pal.sunInt || 0.8;
 
     this.buildSky();
     this.buildTerrain();
@@ -54,23 +85,18 @@ const R3D = {
     this.buildWalls();
     this.buildRoofs();
     this.buildBridges();
-
-    FX.init(this.scene);
-
-    this.spriteMats = {};
-    this.sprites = new Map();
-    this.ready = true;
   },
 
-  // ---------- static geometry ----------
+  // ---------- static geometry (all added to this.zoneGroup) ----------
 
   buildSky() {
-    const tex = new THREE.CanvasTexture(SKY);
+    const src = (this.world.palette && this.world.palette.skyArt && ART[this.world.palette.skyArt]) || SKY;
+    const tex = new THREE.CanvasTexture(src);
     tex.wrapS = THREE.RepeatWrapping;
     const geo = new THREE.SphereGeometry(90, 24, 10);
     const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false });
     this.skyMesh = new THREE.Mesh(geo, mat);
-    this.scene.add(this.skyMesh);
+    this.zoneGroup.add(this.skyMesh);
   },
 
   buildTerrain() {
@@ -117,7 +143,7 @@ const R3D = {
     detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
     const mat = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0, map: detail });
     this.terrainMesh = new THREE.Mesh(geo, mat);
-    this.scene.add(this.terrainMesh);
+    this.zoneGroup.add(this.terrainMesh);
   },
 
   buildWater() {
@@ -139,9 +165,10 @@ const R3D = {
     geo.setIndex(idx);
     geo.computeVertexNormals();
     const mat = new THREE.MeshPhongMaterial({
-      color: 0x2f6fa8, transparent: true, opacity: 0.78, shininess: 80, specular: 0x88aacc,
+      color: (this.world.palette && this.world.palette.water) || 0x2f6fa8,
+      transparent: true, opacity: 0.78, shininess: 80, specular: 0x88aacc,
     });
-    this.scene.add(new THREE.Mesh(geo, mat));
+    this.zoneGroup.add(new THREE.Mesh(geo, mat));
   },
 
   wallTex(key) {
@@ -179,7 +206,7 @@ const R3D = {
         const ground = terrainH(x + 0.5, y + 0.5);
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), matFor(key));
         mesh.position.set(x + 0.5, ground + h / 2, y + 0.5);
-        this.scene.add(mesh);
+        this.zoneGroup.add(mesh);
         if (isDoor) {
           const d = doors.find(dd => dd.x === x && dd.y === y);
           if (d) this.doorMeshes.set(d, mesh);
@@ -220,7 +247,7 @@ const R3D = {
       else rail.position.set((side ? maxX + 0.98 : minX + 0.02), deckH + 0.28, (minY + maxY) / 2 + 0.5);
       grp.add(rail);
     }
-    this.scene.add(grp);
+    this.zoneGroup.add(grp);
   },
 
   buildRoofs() {
@@ -245,7 +272,7 @@ const R3D = {
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       geo.computeVertexNormals();
       const mat = new THREE.MeshPhongMaterial({ color: b.color, flatShading: true, shininess: 0, side: THREE.DoubleSide });
-      this.scene.add(new THREE.Mesh(geo, mat));
+      this.zoneGroup.add(new THREE.Mesh(geo, mat));
     }
   },
 
@@ -326,7 +353,7 @@ const R3D = {
       new THREE.BoxGeometry(1, h, 1),
       new THREE.MeshLambertMaterial({ map: this.wallTex('rockwall') }));
     mesh.position.set(x + 0.5, ground + h / 2, y + 0.5);
-    this.scene.add(mesh);
+    this.zoneGroup.add(mesh);
     return mesh;
   },
 
