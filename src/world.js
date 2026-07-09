@@ -3272,35 +3272,54 @@ class WorldScene extends Phaser.Scene {
       }));
     });
 
-    // the selected hero's page: spells grouped by school
+    // the selected hero's page: one school at a time, tabbed across the top
     const h = GameData.party[this.sbSel];
-    let py = 106;
-    for (const sc of Object.keys(SCHOOLS)) {
-      const known = h.spells.filter(id => SPELLS[id].school === sc);
-      if (!known.length) continue;
-      add(this.add.text(224, py, SCHOOLS[sc].name.toUpperCase(), {
-        fontFamily: 'monospace', fontSize: '12px', fontStyle: 'bold',
-        color: SCHOOLS[sc].color, stroke: '#2a2014', strokeThickness: 2,
-      }));
-      py += 18;
-      known.forEach((id, j) => {
-        const sp = SPELLS[id];
-        const cx = 224 + (j % 3) * 202, cy = py + Math.floor(j / 3) * 46;
-        const readied = h.quick === id;
-        const card = add(this.add.rectangle(cx + 94, cy + 20, 196, 40, readied ? 0x8a6f28 : 0x4a4032, readied ? 0.35 : 0.12)
-          .setStrokeStyle(readied ? 3 : 1, readied ? 0xc9a227 : 0x6a5a38))
-          .setInteractive({ useHandCursor: true });
-        card.on('pointerdown', () => { h.quick = id; this.refreshHUD(); this.openSpellbook(); });
-        add(this.add.image(cx + 18, cy + 20, sp.icon).setDisplaySize(28, 28));
-        add(this.add.text(cx + 36, cy + 6, sp.name, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#3a2c14', fontStyle: 'bold',
-        }));
-        add(this.add.text(cx + 36, cy + 21, sp.cost + ' mp', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#7a1f1f',
-        }));
-      });
-      py += Math.ceil(known.length / 3) * 46 + 8;
+    const bySchool = {};
+    for (const id of h.spells) {
+      const sc = SPELLS[id].school;
+      (bySchool[sc] = bySchool[sc] || []).push(id);
     }
+    const heroSchools = Object.keys(SCHOOLS).filter(sc => bySchool[sc]);
+    if (!heroSchools.includes(this.sbSchool)) this.sbSchool = heroSchools[0];
+
+    // school tabs (colored chips with counts)
+    const tabW = Math.min(118, Math.floor(600 / Math.max(1, heroSchools.length)));
+    heroSchools.forEach((sc, i) => {
+      const tx = 230 + i * (tabW + 4) + tabW / 2, ty = 112;
+      const sel = sc === this.sbSchool;
+      const chipColor = Phaser.Display.Color.HexStringToColor(SCHOOLS[sc].color).color;
+      const chip = add(this.add.rectangle(tx, ty, tabW, 26, chipColor, sel ? 0.42 : 0.10)
+        .setStrokeStyle(sel ? 3 : 1, sel ? chipColor : 0x6a5a38))
+        .setInteractive({ useHandCursor: true });
+      chip.on('pointerdown', () => { this.sbSchool = sc; this.openSpellbook(); });
+      add(this.add.text(tx, ty, `${SCHOOLS[sc].name} (${bySchool[sc].length})`, {
+        fontFamily: 'monospace', fontSize: sel ? '11px' : '10px', fontStyle: 'bold',
+        color: sel ? '#2a2014' : '#4a3c24',
+      }).setOrigin(0.5));
+    });
+
+    // the chosen school's spells, roomy grid
+    const known = bySchool[this.sbSchool] || [];
+    add(this.add.text(224, 138, SCHOOLS[this.sbSchool].name.toUpperCase() + ' MAGIC', {
+      fontFamily: 'monospace', fontSize: '13px', fontStyle: 'bold',
+      color: SCHOOLS[this.sbSchool].color, stroke: '#2a2014', strokeThickness: 2,
+    }));
+    known.forEach((id, j) => {
+      const sp = SPELLS[id];
+      const cx = 224 + (j % 3) * 202, cy = 160 + Math.floor(j / 3) * 50;
+      const readied = h.quick === id;
+      const card = add(this.add.rectangle(cx + 94, cy + 21, 196, 44, readied ? 0x8a6f28 : 0x4a4032, readied ? 0.35 : 0.12)
+        .setStrokeStyle(readied ? 3 : 1, readied ? 0xc9a227 : 0x6a5a38))
+        .setInteractive({ useHandCursor: true });
+      card.on('pointerdown', () => { h.quick = id; this.refreshHUD(); this.openSpellbook(); });
+      add(this.add.image(cx + 20, cy + 21, sp.icon).setDisplaySize(30, 30));
+      add(this.add.text(cx + 40, cy + 6, sp.name, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#3a2c14', fontStyle: 'bold',
+      }));
+      add(this.add.text(cx + 40, cy + 23, sp.cost + ' mp' + (readied ? '  · readied' : ''), {
+        fontFamily: 'monospace', fontSize: '10px', color: readied ? '#8a6f28' : '#7a1f1f',
+      }));
+    });
 
     const canStudy = HERO_SCHOOLS[h.name].filter(s => s !== 'martial').map(s => SCHOOLS[s].name).join(', ');
     add(this.add.text(224, 448, canStudy
