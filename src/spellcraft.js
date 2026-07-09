@@ -133,7 +133,7 @@ function validateSpellSpec(spec) {
 function applyEffects(scene, heroIdx, spec, target, time) {
   const h = GameData.party[heroIdx];
   const px = scene.px, py = scene.py;
-  const tDist = target ? Math.hypot(target.x - px, target.y - py, scene.eyeZ - 0.5) : Infinity;
+  const tDist = target ? Math.hypot(target.x - px, target.y - py, scene.agl() - 0.5) : Infinity;
 
   // shape gathers victims (or validates the cast)
   let victims = [];

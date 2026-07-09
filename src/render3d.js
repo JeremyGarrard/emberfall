@@ -16,7 +16,7 @@ const WALL_HEIGHT = {
   5: 1.6, 6: 0.65, 7: 1.25, 8: 1.25, 9: 1.25,
   10: 1.25, 11: 1.25, 12: 1.25, 13: 1.25,
   14: 1.25, 15: 1.25, 16: 1.25, 17: 1.25,
-  18: 1.9,
+  18: 1.9, 19: 2.2, // 19 = castle curtain wall
 };
 
 const R3D = {
@@ -190,6 +190,7 @@ const R3D = {
       6: 'fencewall', 7: 'timberwall', 8: 'plankwall', 9: 'rockwall',
       10: 'doorwall', 11: 'timberwin', 12: 'stonewin', 13: 'plankwin',
       14: 'signtavern', 15: 'signsmith', 16: 'signtrade', 17: 'bannerwall', 18: 'rockwall',
+      19: 'rockwall', // castle curtain
     };
     const mats = {};
     const matFor = key => {

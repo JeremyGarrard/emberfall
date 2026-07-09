@@ -24,8 +24,9 @@ const Dialogue = {
     this.qrow = document.getElementById('dlg-quest');
     document.getElementById('dlg-quest-btn').addEventListener('click', () => {
       this.qrow.style.display = 'none';
-      if (this.world) this.world.acceptQuest('lostblade');
-      const msg = QUESTS.lostblade.accept;
+      const qid = this._qid || 'lostblade'; // set per-villager in openFor
+      if (this.world) this.world.acceptQuest(qid);
+      const msg = QUESTS[qid].accept;
       this.villager.chat.push({ role: 'assistant', content: msg });
       this.addBubble('npc', msg);
     });
@@ -94,8 +95,9 @@ const Dialogue = {
       trow.style.display = 'none';
     }
 
-    // quest hooks (Bram's Lost Blade)
+    // quest hooks
     this.qrow.style.display = 'none';
+    const qbtn = document.getElementById('dlg-quest-btn');
     if (entity.villager.id === 'bram') {
       const q = GameData.quests.lostblade;
       if (q !== 'done' && GameData.flags.hasLostBlade) {
@@ -104,6 +106,20 @@ const Dialogue = {
         this.addBubble('npc', msg);
         this.world.completeQuest('lostblade');
       } else if (q === 'available') {
+        this._qid = 'lostblade';
+        qbtn.innerHTML = '&#9876; Accept quest: The Lost Blade';
+        this.qrow.style.display = 'flex';
+      }
+    } else if (entity.villager.id === 'aldric') {
+      const q = GameData.quests.wolfcull;
+      if (q === 'ready') {
+        const msg = QUESTS.wolfcull.complete;
+        entity.chat.push({ role: 'assistant', content: msg });
+        this.addBubble('npc', msg);
+        this.world.completeQuest('wolfcull');
+      } else if (q === 'available') {
+        this._qid = 'wolfcull';
+        qbtn.innerHTML = '&#9876; Accept charge: The Wolves of Pinereach';
         this.qrow.style.display = 'flex';
       }
     }
@@ -262,6 +278,14 @@ const Dialogue = {
       facts += wolves.length
         ? ` By your reckoning ${wolves.length} dire ${wolves.length > 1 ? 'wolves' : 'wolf'} still run the vale; the nearest pack prowls ${dirName(nearest(wolves).x - START.x, nearest(wolves).y - START.y)} of the village.`
         : ' You have run down the last of the dire wolves — the vale is clear of them, for now.';
+    }
+
+    if (cfg.id === 'aldric') {
+      const q = GameData.quests.wolfcull;
+      if (q === 'available') facts += ' The dire wolves of Pinereach have grown bold enough to take riders on the road; you want six culled and will pay 350 gold plus a guild scroll — the offer sits before these adventurers.';
+      else if (q === 'active') facts += ` These adventurers took your charge to cull six Pinereach wolves; ${GameData.flags.wolfKills || 0} are slain so far. The coach from any post can carry them to Pinereach.`;
+      else if (q === 'ready') facts += ' These adventurers culled the six wolves — you owe them 350 gold and a guild scroll, and you are grateful.';
+      else if (q === 'done') facts += ' These adventurers already culled the Pinereach wolves for you; the road is safer and you paid them well.';
     }
 
     if (cfg.id === 'bram') {

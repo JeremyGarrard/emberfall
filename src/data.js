@@ -188,8 +188,8 @@ const GameData = {
     makeHero('Serena',   'Cleric',   { hp: 30, mp: 42, atk: 4, def: 2, spells: ['heal', 'greatheal', 'regen', 'bless', 'stimulant', 'vigor', 'secondwind', 'sunray', 'prismatic', 'hourofpower', 'aegis', 'consecrate', 'judgment', 'spiritlash', 'ghostblades', 'ancestorswatch', 'spiritwisp', 'raisedead', 'foresight', 'sleep', 'charmbeast', 'mindspike', 'masshysteria', 'astralrecall'], range: 6, rec: 1200 }),
     makeHero('Malwick',  'Sorcerer', { hp: 26, mp: 55, atk: 3, def: 1, spells: ['fireball', 'firebolt', 'ringfire', 'emberspray', 'immolation', 'meteorswarm', 'frostnova', 'rockblast', 'stoneskin', 'roots', 'tremor', 'bulwark', 'earthspikes', 'golem', 'drain', 'curse', 'hex', 'bloodritual', 'shadowstep', 'plague', 'fly', 'armageddon'], range: 7, rec: 1300 }),
   ],
-  flags: { hasLostBlade: false },
-  quests: { lostblade: 'available' }, // available -> active -> found -> done
+  flags: { hasLostBlade: false, wolfKills: 0 },
+  quests: { lostblade: 'available', wolfcull: 'available' }, // available -> active -> (found/ready) -> done
   inventory: new Array(32).fill(null),
   craftedSpells: [], // player-invented spell specs (persisted; re-registered on load)
   zone: 'embervale',      // current map
@@ -197,24 +197,113 @@ const GameData = {
 };
 
 // ---- zones: separate maps you travel between by coach (design/WORLD.md) ----
-// home = the Emberfall vale (village, camp, river, quest). wild = a themed
-// wilderness. `arrive` is where you land when a coach drops you here.
+// home = the Emberfall vale (village, camp, river, quest). town = authored
+// walled settlement, no monsters. wild = themed wilderness. `arrive` is where
+// the coach drops you.
+
+// Oakhearth: a walled market town beneath Castle Oakhearth (Act 1 hub).
+// Legend: k tall castle wall · S stone · m stone window · T timber · n window ·
+// B plank · o plank window · D door · C chimney · ':' cobble · ',' dirt ·
+// W well · L lamp · '.' grass
+const OAKHEARTH_LAYOUT = [
+  'kkkkkkkmmkkkkmmkkkkkkk',
+  'k::::::::::::::::::::k',
+  'k:::SSSSSmmSSSSS:::::k',
+  'k:::S::::::::::m:::::k',
+  'k:::m::::::::::S:::::k',
+  'k:::SSSSSDSSSSSS:::::k',
+  'k::::::::,:::::::::::k',
+  'kkkkkkkkkDkkkkkkkkkkkk',
+  '.....,,,,,............',
+  '.TTnTT.,,,.SSmSS......',
+  '.TDTTC.,,,.SSDSS......',
+  '.......,,,............',
+  '.BBoBB.,,,.TTnTT......',
+  '.BDBBB.,,,.TDTTT......',
+  '...L..,,,,..W.........',
+  '......,,,,............',
+];
+
+const OAK_VILLAGERS = [
+  {
+    id: 'aldric', name: 'Lord Aldric', art: 'lord', st: 0, spot: [12, 6],
+    home: 'the courtyard of Castle Oakhearth',
+    locale: 'You keep Oakhearth, a walled market town beneath your family\'s old castle, a coach-ride west of the Emberfall frontier. Its market square holds an inn, houses, and the mages\' guild hall.',
+    persona: 'the graying castellan of Oakhearth — courteous, tired, iron underneath. The wolf packs of Pinereach have grown bold enough to take riders on the road, and you want sword-hands to thin them.',
+    specialty: 'wolfcull',
+    greeting: 'Welcome to Oakhearth, wardens. Forgive the thin garrison — every spare blade watches the Pinereach road. Perhaps you are the answer to that.',
+  },
+  {
+    id: 'orwin', name: 'Magister Orwin', art: 'mage2', st: 0, spot: [13, 11],
+    home: 'the guild hall on Oakhearth\'s square',
+    locale: 'You keep the mages\' guild hall in Oakhearth, a walled market town with a castle, an inn, and a market square.',
+    persona: 'a precise, dry-witted guild magister who catalogues ember-shards and disapproves of Xarthax by name (though you keep his letters). You lecture gently about the nine schools of magic.',
+    specialty: 'magic',
+    greeting: 'Ah — travellers with mana on their fingers. Mind the carpets. What would you know of the Art?',
+  },
+  {
+    id: 'betha', name: 'Betha the Innkeeper', art: 'innkeep', st: 0, spot: [2, 11],
+    home: 'the Gilded Acorn inn',
+    locale: 'You run the Gilded Acorn, the inn on Oakhearth\'s market square, in the shadow of the castle.',
+    persona: 'a brisk, warm innkeeper who hears every rumor that rides the coach road and repeats the best ones free with supper.',
+    specialty: 'rumors',
+    greeting: 'Come in out of the dust! Stew\'s hot, beds are clean, and the gossip is fresher than either.',
+  },
+];
+
 const ZONES = {
   embervale: {
     name: 'Embervale', home: true, arrive: [20.5, 36.5],
   },
   pinereach: {
-    name: 'Pinereach', home: false, arrive: [12.5, 36.5],
+    name: 'Pinereach', arrive: [12.5, 36.5],
     dense: true, // thick pine forest
+    enemies: [['wolf', 0.5], ['bear', 0.82], ['goblin', 1]],
     palette: { fog: 0x8ea89a, fogNear: 7, fogFar: 26, hemiSky: 0x9ab0c4,
                hemiGround: 0x22331c, hemiInt: 0.72, sun: 0xdfe6c4, sunInt: 0.6, water: 0x2c5240 },
+  },
+  oakhearth: {
+    name: 'Oakhearth', town: true, arrive: [17.5, 36.5],
+    settlements: [{ layout: OAKHEARTH_LAYOUT, x1: 8, y1: 26 }],
+    villagers: OAK_VILLAGERS,
+    // roofs, relative to the town stamp (st 0)
+    buildings: [
+      { x1: 4, y1: 2, x2: 15, y2: 5, h: 2.35, color: 0x4a5a6e },   // the keep
+      { x1: 1, y1: 9, x2: 5, y2: 10, h: 1.25, color: 0x7a4a2a },   // house
+      { x1: 11, y1: 9, x2: 15, y2: 10, h: 1.35, color: 0x5a6a8a }, // guild hall
+      { x1: 1, y1: 12, x2: 5, y2: 13, h: 1.25, color: 0x6b4526 },  // the Gilded Acorn
+      { x1: 11, y1: 12, x2: 15, y2: 13, h: 1.25, color: 0x7a5a2a },// house
+    ],
+    palette: { fog: 0xc8d4e8, fogNear: 12, fogFar: 40, hemiSky: 0xbfd8f8,
+               hemiGround: 0x5a6a4a, hemiInt: 0.95, sun: 0xffeecc, sunInt: 0.85, water: 0x2f6fa8 },
+  },
+  greymire: {
+    name: 'Greymire', arrive: [12.5, 36.5],
+    marsh: true, // drowned fen: pools everywhere, Water Walk earns its keep
+    enemies: [['wisp', 0.45], ['slime', 0.75], ['goblin', 1]],
+    palette: { fog: 0x7a8a74, fogNear: 5, fogFar: 20, hemiSky: 0x8a9a84,
+               hemiGround: 0x2a3324, hemiInt: 0.6, sun: 0xc8c8a8, sunInt: 0.45, water: 0x3a4a34 },
   },
 };
 
 // coach routes: where each zone's coachman can send you, and the fare
 const TRAVEL = {
-  embervale: [{ to: 'pinereach', name: 'Pinereach', price: 40 }],
-  pinereach: [{ to: 'embervale', name: 'Emberfall', price: 0 }], // ride home is on the house
+  embervale: [
+    { to: 'pinereach', name: 'Pinereach', price: 40 },
+    { to: 'oakhearth', name: 'Oakhearth', price: 60 },
+  ],
+  pinereach: [
+    { to: 'embervale', name: 'Emberfall', price: 0 }, // ride home is on the house
+    { to: 'oakhearth', name: 'Oakhearth', price: 30 },
+  ],
+  oakhearth: [
+    { to: 'embervale', name: 'Emberfall', price: 60 },
+    { to: 'pinereach', name: 'Pinereach', price: 30 },
+    { to: 'greymire', name: 'Greymire', price: 50 },
+  ],
+  greymire: [
+    { to: 'oakhearth', name: 'Oakhearth', price: 0 }, // nobody lingers in the mire
+  ],
 };
 
 // the coachman NPC (placed per-zone in buildEntities; talking opens the travel menu)
@@ -238,6 +327,12 @@ const QUESTS = {
     title: 'The Lost Blade',
     accept: 'Bring my blade home and Maren\'s scroll is yours — Fly, no less. The wind\'s own gift. The goblins hauled my blade east, past the river ford. Watch the hills.',
     complete: 'My blade! By the forge — you actually brought it home! Here, as promised: Maren\'s scroll — FLY. Take the wind itself for a mount, and let the wolves snap at your shadow. Thank you, friends.',
+  },
+  wolfcull: {
+    title: 'The Wolves of Pinereach',
+    need: 6, // dire wolves to cull
+    accept: 'Six of the boldest, wardens — thin the packs that stalk the Pinereach road, and Oakhearth\'s purse opens to you: three hundred and fifty gold, and a scroll from the guild\'s own vault. The coach will carry you there.',
+    complete: 'Six pelts\' worth of quiet on my road — the coachmen already toast your names. Here: three hundred and fifty gold, and Magister Orwin parts (grudgingly) with a guild scroll. Oakhearth thanks you.',
   },
 };
 
@@ -291,6 +386,7 @@ const ENEMY_TYPES = {
   goblin: { name: 'Goblin',    hp: 26, atk: 6, def: 1, xp: 14, gold: [4, 10], speed: 1.8, cd: 1300 },
   wolf:   { name: 'Dire Wolf', hp: 40, atk: 9, def: 2, xp: 24, gold: [8, 16], speed: 2.6, cd: 1100 },
   bear:   { name: 'Cave Bear', hp: 68, atk: 13, def: 3, xp: 44, gold: [14, 28], speed: 2.1, cd: 1400 },
+  wisp:   { name: 'Mire Wisp', hp: 26, atk: 11, def: 0, xp: 30, gold: [10, 22], speed: 3.0, cd: 1150 },
 };
 
 function xpForLevel(level) { return level * 40; }

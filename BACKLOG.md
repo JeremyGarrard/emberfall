@@ -74,9 +74,14 @@ The marquee LLM feature — **working end-to-end with the local LLM.**
   More content (quests/unique props) still welcome.
 - **4.5 [L] WorldMapScene** — parchment map of Averron, node travel, fog-of-war.
   (The coach covers travel for now; a map screen is the visual upgrade.)
-- **4.6 [M] Town-theme zones** (no monster spawns, shop props). 🔒 feeds EPIC 5.
-- **4.7 [S] More zones** — add a `ZONES` entry + a `TRAVEL` route; wild-zone gen
-  already supports it. Greymire (marsh) is the lore's next stop.
+- **4.6 ✅ Town-theme zones.** `zone.town`: authored settlement stamp (shared
+  `stampSettlements`/`CHAR_TILE` incl. `k` = tall castle wall T_CASTLE), zone
+  villagers/buildings, no monsters. **Oakhearth** shipped: castle keep + curtain
+  walls, market square, Lord Aldric (quest #2), Magister Orwin, Betha, 3 coach
+  routes.
+- **4.7 ✅ More zones.** **Greymire** marsh shipped (pool-drowned map variant,
+  floating Mire Wisps, murky palette). Per-zone enemy tables (`zone.enemies`).
+  Next zones are one ZONES+TRAVEL entry each.
 
 ## EPIC 5 — Towns, guilds, training, upgrades → `design/PROGRESSION.md`
 Makes gold matter and adds build depth. 🔒 EPIC 4 for the town zones.
@@ -97,7 +102,10 @@ Fills the world. Mostly unblocked; authoring against the lore bible.
   folded into the deep-wilderness spawn roll (seeded, no uid shift).
 - **6.2 [M] Goblin shaman** (ranged caster enemy; needs projectileSpell 🔒2.0).
 - **6.3 [S] Emberspawn + wisp** monster art/stats for later zones.
-- **6.4 [M] Quest #2 "The Wolfmother's Den"** (Marta/Maren; lostblade pattern).
+- **6.4 ✅ Quest #2 "The Wolves of Pinereach".** Lord Aldric (Oakhearth) — cull
+  6 dire wolves, 350g + Mass Hysteria scroll. Kill-count pattern in `killEnemy`;
+  quest button generalized (`Dialogue._qid`). The Wolfmother's Den remains open
+  as a 3rd quest idea.
 - **6.5 [M] Guildmaster NPCs** (one per school, personalities per LORE.md). 🔒5.4
 - **6.6 [S] Inject LORE_COMMON** into every villager system prompt; give
   existing NPCs faction-aware facts. LORE.md.

@@ -8,6 +8,16 @@ const T_GRASS = 0, T_DIRT = 1, T_COBBLE = 2, T_WATER = 3, T_WOOD = 4;
 const T_ROCK = 5, T_FENCE = 6, T_TIMBER = 7, T_PLANK = 8, T_STONE = 9;
 const T_DOOR = 10, T_TIMBER_WIN = 11, T_STONE_WIN = 12, T_PLANK_WIN = 13;
 const T_SIGN_TAVERN = 14, T_SIGN_SMITH = 15, T_SIGN_TRADE = 16, T_BANNER = 17, T_CHIMNEY = 18;
+const T_CASTLE = 19; // tall castle curtain wall (Oakhearth)
+
+// settlement-stamp legend, shared by every authored layout (village/camp/town)
+const CHAR_TILE = {
+  F: T_FENCE, T: T_TIMBER, V: T_TIMBER, S: T_STONE, B: T_PLANK, k: T_CASTLE,
+  D: T_DOOR, n: T_TIMBER_WIN, m: T_STONE_WIN, o: T_PLANK_WIN,
+  a: T_SIGN_TAVERN, b: T_SIGN_SMITH, c: T_SIGN_TRADE, h: T_BANNER, C: T_CHIMNEY,
+  ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
+  K: T_DIRT, X: T_DIRT, // campfire & tents stand on dirt (props supply the art)
+};
 const MAP_W = 96, MAP_H = 72;
 const BRIDGE_H = 0.3; // deck height at the bridge's ends (it arches higher mid-span)
 const START = { x: 10.5, y: 35.5 }; // the village green
@@ -80,6 +90,7 @@ const SPRITE_META = {
   anvil: { vDiv: 2.4 }, barrel: { vDiv: 2.0 }, crate: { vDiv: 2.1 }, smoke: { vDiv: 1.5 },
   spellwright: { vDiv: 1.35 }, golem: { vDiv: 1.1 }, wisp: { vDiv: 2.0 }, totemArt: { vDiv: 1.6 },
   coachman: { vDiv: 1.32 }, carriage: { vDiv: 0.82 },
+  lord: { vDiv: 1.3 }, mage2: { vDiv: 1.33 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
   innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
   campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
@@ -1362,6 +1373,30 @@ class BootScene extends Phaser.Scene {
       g.fillStyle = '#6a5238'; ell(g, 16, 26, 1.5, 1.5, '#6a5238'); ell(g, 25, 26, 1.5, 1.5, '#6a5238');
     });
 
+    // Oakhearth folk
+    makeArt('lord', g => {
+      g.fillStyle = '#6e2a34'; g.fillRect(9, 15, 14, 15);            // crimson doublet
+      g.fillStyle = '#c4b498'; g.fillRect(9, 15, 14, 3);             // fur collar
+      g.fillStyle = '#8a6a2a'; g.fillRect(9, 22, 14, 1.5);           // gold belt
+      ell(g, 16, 10, 5.5, 5.5, '#e0c0a0');                           // face
+      g.fillStyle = '#9a9fa8'; ell(g, 16, 5.5, 6, 3, '#9a9fa8');     // steel-grey hair
+      g.strokeStyle = '#d0b040'; g.lineWidth = 1.8;                  // circlet
+      g.beginPath(); g.moveTo(11, 6.5); g.lineTo(21, 6.5); g.stroke();
+      ell(g, 14, 10, 1, 1.2, '#2a2018'); ell(g, 18, 10, 1, 1.2, '#2a2018');
+      g.fillStyle = '#9a9fa8'; g.fillRect(13, 13.5, 6, 2);           // trim beard
+    });
+    makeArt('mage2', g => {
+      g.fillStyle = '#2a4a7a'; g.fillRect(9, 14, 14, 16);            // guild-blue robe
+      g.fillStyle = '#1e3658'; g.fillRect(9, 14, 3, 16);
+      g.fillStyle = '#d0b040'; g.fillRect(9, 27, 14, 1.5);           // gold hem
+      ell(g, 16, 9, 5.5, 5.5, '#e6c4a2');                            // face
+      g.fillStyle = '#4a3a28'; ell(g, 16, 5, 6, 2.5, '#4a3a28');     // neat dark hair
+      g.strokeStyle = '#c8ccd4'; g.lineWidth = 1.2;                  // spectacles
+      g.beginPath(); g.arc(13.5, 9.5, 2, 0, Math.PI * 2); g.arc(18.5, 9.5, 2, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.moveTo(15.5, 9.5); g.lineTo(16.5, 9.5); g.stroke();
+      ell(g, 13.5, 9.5, 0.9, 1, '#2a2018'); ell(g, 18.5, 9.5, 0.9, 1, '#2a2018');
+    });
+
     this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
@@ -1422,6 +1457,10 @@ class WorldScene extends Phaser.Scene {
       });
       GameData.zone = s.zone || 'embervale';
       GameData.zoneState = s.zoneState || {};
+      // quests added after this save was written default to fresh
+      if (!GameData.quests.wolfcull) GameData.quests.wolfcull = 'available';
+      if (GameData.flags.wolfKills === undefined) GameData.flags.wolfKills = 0;
+      if (!ZONES[GameData.zone]) GameData.zone = 'embervale';
     }
 
     this.loadZoneData(GameData.zone);
@@ -1601,6 +1640,9 @@ class WorldScene extends Phaser.Scene {
 
   spawnPoint() { return this.zone.home ? [START.x, START.y] : this.zone.arrive.slice(); }
 
+  // this zone's authored settlements (home = the Emberfall list)
+  zoneSetts() { return this.zone.home ? SETTLEMENTS : (this.zone.settlements || []); }
+
   loadZoneData(zoneId) {
     GameData.zone = zoneId;
     this.zone = ZONES[zoneId];
@@ -1622,7 +1664,10 @@ class WorldScene extends Phaser.Scene {
       buildings: this.zone.home ? BUILDINGS.map(b => ({
         x1: VILLAGE.x1 + b.x1, y1: VILLAGE.y1 + b.y1,
         x2: VILLAGE.x1 + b.x2, y2: VILLAGE.y1 + b.y2, h: 1.25, color: b.color,
-      })) : [],
+      })) : (this.zone.buildings || []).map(b => {
+        const st = this.zoneSetts()[b.st || 0];
+        return { x1: st.x1 + b.x1, y1: st.y1 + b.y1, x2: st.x1 + b.x2, y2: st.y1 + b.y2, h: b.h || 1.25, color: b.color };
+      }),
       bridges: this.bridgeCells, bridgeH: BRIDGE_H,
       bridgeHAt: x => this.bridgeHAt(x),
       groundAt: (x, y) => this.onBridge(x, y) ? this.bridgeHAt(x) : this.terrainH(x, y),
@@ -1664,17 +1709,40 @@ class WorldScene extends Phaser.Scene {
     this.doors = [];
     this.bridgeSet = new Set();
     this.bridgeCells = [];
+    this.bridgeSpan = null;
 
     if (this.zone.home) this.buildHomeMap();
+    else if (this.zone.town) this.buildTownMap();
     else this.buildWildMap();
 
     this.buildHeights();
   }
 
+  // any zone's authored settlements get stamped the same way
+  stampSettlements() {
+    for (const s of this.zoneSetts()) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          this.map[s.y1 + ry][s.x1 + rx] = CHAR_TILE[row[rx]] || T_GRASS;
+          if (row[rx] === 'D') this.doors.push({ x: s.x1 + rx, y: s.y1 + ry, open: false });
+        }
+      });
+    }
+  }
+
+  buildTownMap() {
+    // walled town on open ground — the stamp carries everything
+    this.stampSettlements();
+  }
+
   buildWildMap() {
-    // a themed wilderness: one pond, no settlements. Trees/enemies come from
-    // buildEntities; the coach clearing is flattened in buildHeights.
-    for (const [cx, cy, rx, ry] of [[64, 20, 7, 5], [40, 54, 6, 4]]) {
+    // a themed wilderness. Marsh zones drown in pools; forests get two ponds.
+    const [ax, ay] = this.zone.arrive;
+    const blobs = this.zone.marsh
+      ? Array.from({ length: 14 }, () => [gri(5, MAP_W - 6), gri(5, MAP_H - 6), gri(2, 5), gri(2, 4)])
+      : [[64, 20, 7, 5], [40, 54, 6, 4]];
+    for (const [cx, cy, rx, ry] of blobs) {
+      if (this.zone.marsh && Math.hypot(cx - ax, cy - ay) < 10) continue; // the coach clearing stays dry
       for (let y = 1; y < MAP_H - 1; y++) for (let x = 1; x < MAP_W - 1; x++) {
         const dx = (x - cx) / rx, dy = (y - cy) / ry;
         if (dx * dx + dy * dy <= 1) this.map[y][x] = T_WATER;
@@ -1702,22 +1770,8 @@ class WorldScene extends Phaser.Scene {
       }
     }
 
-    // stamp the authored village over whatever the wilderness generated
-    const CHAR_TILE = {
-      F: T_FENCE, T: T_TIMBER, V: T_TIMBER, S: T_STONE, B: T_PLANK,
-      D: T_DOOR, n: T_TIMBER_WIN, m: T_STONE_WIN, o: T_PLANK_WIN,
-      a: T_SIGN_TAVERN, b: T_SIGN_SMITH, c: T_SIGN_TRADE, h: T_BANNER, C: T_CHIMNEY,
-      ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
-      K: T_DIRT, X: T_DIRT, // Eastmarch: campfire & tents stand on dirt (props supply the art)
-    };
-    for (const s of SETTLEMENTS) {
-      s.layout.forEach((row, ry) => {
-        for (let rx = 0; rx < row.length; rx++) {
-          this.map[s.y1 + ry][s.x1 + rx] = CHAR_TILE[row[rx]] || T_GRASS;
-          if (row[rx] === 'D') this.doors.push({ x: s.x1 + rx, y: s.y1 + ry, open: false });
-        }
-      });
-    }
+    // stamp the authored village + camp over whatever the wilderness generated
+    this.stampSettlements();
 
     // the east road: a clear corridor from the village gate to Eastmarch's,
     // bridging the river and winding through the hills (stops at the camp's west wall).
@@ -1768,18 +1822,18 @@ class WorldScene extends Phaser.Scene {
       }
     }
 
-    if (this.zone.home) {
-      // each settlement sits on a leveled shelf; fade the flattening outward
-      for (const st of SETTLEMENTS) {
-        for (let y = 0; y < H1; y++) {
-          for (let x = 0; x < W1; x++) {
-            const dx = Math.max(st.x1 - x, 0, x - (st.x2 + 1));
-            const dy = Math.max(st.y1 - y, 0, y - (st.y2 + 1));
-            const d = Math.hypot(dx, dy);
-            if (d < 5) h[y][x] *= d / 5;
-          }
+    // every authored settlement sits on a leveled shelf; fade outward
+    for (const st of this.zoneSetts()) {
+      for (let y = 0; y < H1; y++) {
+        for (let x = 0; x < W1; x++) {
+          const dx = Math.max(st.x1 - x, 0, x - (st.x2 + 1));
+          const dy = Math.max(st.y1 - y, 0, y - (st.y2 + 1));
+          const d = Math.hypot(dx, dy);
+          if (d < 5) h[y][x] *= d / 5;
         }
       }
+    }
+    if (this.zone.home) {
       // keep the east road a gentle valley route
       const roadY = VILLAGE.y1 + 8;
       for (let y = 0; y < H1; y++) {
@@ -1790,7 +1844,8 @@ class WorldScene extends Phaser.Scene {
           }
         }
       }
-    } else {
+    }
+    if (!this.zoneSetts().length) {
       // wild zones: level a clearing around the coach arrival point
       const [ax, ay] = this.zone.arrive;
       for (let y = 0; y < H1; y++) {
@@ -1821,6 +1876,19 @@ class WorldScene extends Phaser.Scene {
         }
       }
     }
+
+    // earthen abutments (after smoothing, so they stay crisp): the banks ramp
+    // up to meet the bridge deck ends flush — no floating bridge, no gap
+    if (this.zone.home && this.bridgeSpan) {
+      const roadY = VILLAGE.y1 + 8;
+      for (const [vx, f] of [[this.bridgeSpan.x1, 1], [this.bridgeSpan.x1 - 1, 0.55],
+                             [this.bridgeSpan.x2 + 1, 1], [this.bridgeSpan.x2 + 2, 0.55]]) {
+        if (vx < 0 || vx >= W1) continue;
+        for (let vy = roadY - 1; vy <= roadY + 2 && vy < H1; vy++) {
+          h[vy][vx] = Math.max(h[vy][vx], BRIDGE_H * f);
+        }
+      }
+    }
     this.heights = h;
   }
 
@@ -1842,13 +1910,15 @@ class WorldScene extends Phaser.Scene {
 
   // true inside (or within pad of) any walled settlement — the monster sanctuary
   inVillage(x, y, pad = 0) {
-    // sanctuary test — monsters never enter. Home: any settlement. Wild: the
-    // small clearing around the coach so you don't land in a bear's lap.
-    if (this.zone && !this.zone.home) {
+    // sanctuary test — monsters never enter. Settled zones: any settlement
+    // stamp. Wild zones: the small clearing around the coach so you don't
+    // land in a bear's lap.
+    const setts = this.zone ? this.zoneSetts() : SETTLEMENTS;
+    if (!setts.length) {
       const [ax, ay] = this.zone.arrive;
       return Math.hypot(x - ax, y - ay) < 4 + pad;
     }
-    return SETTLEMENTS.some(s =>
+    return setts.some(s =>
       x >= s.x1 - pad && x <= s.x2 + 1 + pad &&
       y >= s.y1 - pad && y <= s.y2 + 1 + pad);
   }
@@ -1918,6 +1988,7 @@ class WorldScene extends Phaser.Scene {
       vDiv: SPRITE_META.carriage.vDiv, uid: 999901,
     });
 
+    if (this.zone.town) { this.buildTownEntities(add); return; }
     if (!this.zone.home) { this.buildWildEntities(add); return; }
 
     // furniture & street dressing (coordinates relative to the village stamp)
@@ -2013,7 +2084,7 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
-  // wild-zone contents (Pinereach): chests in the woods, wolves + bears prowling
+  // wild-zone contents: chests in the woods, the zone's own beasts prowling
   buildWildEntities(add) {
     const [ax, ay] = this.zone.arrive;
     let placed = 0, guard = 0;
@@ -2024,13 +2095,47 @@ class WorldScene extends Phaser.Scene {
         add('chest', 'chest', x, y); placed++;
       }
     }
+    const table = this.zone.enemies || [['wolf', 0.5], ['bear', 0.82], ['goblin', 1]];
     let enemies = 0; guard = 0;
     while (enemies < 34 && guard++ < 6000) {
       const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
       if (this.map[y][x] !== T_GRASS || this.inVillage(x, y, 6) || this.entityAt(x, y)) continue;
       const roll = grand();
-      add('enemy', roll < 0.5 ? 'wolf' : roll < 0.82 ? 'bear' : 'goblin', x, y);
+      let pick = table[table.length - 1][0];
+      for (const [t2, p] of table) { if (roll < p) { pick = t2; break; } }
+      const e = add('enemy', pick, x, y);
+      if (pick === 'wisp') e.zOff = 0.35; // wisps drift above the mire
       enemies++;
+    }
+  }
+
+  // town contents: layout props, the townsfolk, a few chests beyond the walls.
+  // No monsters — towns are sanctuary throughout.
+  buildTownEntities(add) {
+    const CHAR_PROP = { U: 'fountain', W: 'well', L: 'lamp', K: 'campfire', X: 'tent' };
+    for (const s of this.zoneSetts()) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          const kind = CHAR_PROP[row[rx]];
+          const gx = s.x1 + rx, gy = s.y1 + ry;
+          if (kind === 'fountain') add('fountain', 'fountain', gx, gy);
+          else if (kind) add('prop', kind, gx, gy);
+        }
+      });
+    }
+    for (const v of (this.zone.villagers || [])) {
+      const st = this.zoneSetts()[v.st || 0];
+      const e = add('villager', v.art, st.x1 + v.spot[0], st.y1 + v.spot[1]);
+      e.name = v.name;
+      e.villager = v;
+      e.chat = [];
+    }
+    let placed = 0, guard = 0;
+    while (placed < 4 && guard++ < 1500) {
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
+      if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) && !this.entityAt(x, y)) {
+        add('chest', 'chest', x, y); placed++;
+      }
     }
   }
 
@@ -2112,6 +2217,13 @@ class WorldScene extends Phaser.Scene {
     return t >= 5 ? (WALL_HEIGHT[t] || 1) : 0;
   }
 
+  // height above the ground beneath the party (flying uses absolute altitude)
+  agl() {
+    return this.flying && this.flyZ !== undefined
+      ? this.flyZ - this.terrainH(this.px, this.py)
+      : this.eyeZ;
+  }
+
   canFly(x, y) {
     // the winds die at the mountain rim — no leaving the vale
     if (x < 2.5 || y < 2.5 || x > MAP_W - 2.5 || y > MAP_H - 2.5) return false;
@@ -2190,21 +2302,27 @@ class WorldScene extends Phaser.Scene {
         }
       }
 
-      // flight: R/X (or PgUp/PgDn, as in MM7) to rise and dive — soar high
+      // flight: R/X (or PgUp/PgDn, as in MM7) to rise and dive. flyZ is an
+      // ABSOLUTE altitude — you hold your height over hills and valleys alike,
+      // instead of contour-following the terrain.
       if (this.flying) {
         const rise = (k.R.isDown || k.PAGE_UP.isDown) ? 1 : 0;
         const dive = (k.X.isDown || k.PAGE_DOWN.isDown) ? 1 : 0;
-        let target = this.eyeZ + (rise - dive) * 6.5 * dt;
-        if (this.landing) target = this.eyeZ - 6.5 * dt;
-        const minZ = this.minEyeAt(this.px, this.py);
-        this.eyeZ = clamp(target, Math.max(0.5, minZ), 30); // soar far above the peaks
-        if (this.landing && minZ > 0.5 && this.eyeZ <= minZ + 0.02) {
+        if (this.flyZ === undefined) this.flyZ = this.terrainH(this.px, this.py) + this.eyeZ;
+        let target = this.flyZ + (rise - dive) * 6.5 * dt;
+        if (this.landing) target = this.flyZ - 6.5 * dt;
+        const ground = this.terrainH(this.px, this.py);
+        const minZ = this.minEyeAt(this.px, this.py); // local floor (walls, water hover)
+        this.flyZ = clamp(target, ground + Math.max(0.5, minZ), 30);
+        const agl = this.flyZ - ground; // height above the ground below you
+        if (this.landing && minZ > 0.5 && agl <= minZ + 0.02) {
           this.landing = false;
           this.toast('No solid ground below!');
         }
-        if ((this.landing || dive) && this.eyeZ <= 0.505 && minZ <= 0.5) {
+        if ((this.landing || dive) && agl <= 0.505 && minZ <= 0.5) {
           if (this.slopeAt(this.px, this.py) < 0.9) {
-            this.flying = false; this.landing = false; this.eyeZ = 0.5;
+            this.flying = false; this.landing = false;
+            this.eyeZ = 0.5; this.flyZ = undefined;
             this.toast('You touch down.');
             this.refreshHUD();
           } else if (this.landing) {
@@ -2285,7 +2403,7 @@ class WorldScene extends Phaser.Scene {
               const cgx = Math.floor(e.x), cgy = Math.floor(e.y);
               if (!this.inVillage(cgx + 0.5, cgy + 0.5, 0.4)) { e.gx = cgx; e.gy = cgy; }
             }
-          } else if (time > e.nextAtk && this.eyeZ < 1.05) { // can't claw what flies
+          } else if (time > e.nextAtk && this.agl() < 1.05) { // can't claw what flies
             e.nextAtk = time + e.cd;
             this.enemyStrike(e);
           }
@@ -2405,7 +2523,7 @@ class WorldScene extends Phaser.Scene {
       const bs = bl.join('  ');
       if (bs !== this._buffStr) { this._buffStr = bs; this.buffText.setText(bs); }
 
-      const grounded = this.eyeZ < 0.7;
+      const grounded = this.agl() < 0.7;
 
       // doors swing open as you approach and shut behind you
       if (grounded) for (const d of this.doors) {
@@ -2483,11 +2601,12 @@ class WorldScene extends Phaser.Scene {
       this.pickTarget();
     }
 
-    // render the 3D view (tread the bridge deck / water surface, not the riverbed)
+    // render the 3D view. Flying = absolute altitude; afoot = tread the bridge
+    // deck / water surface, never the riverbed.
     const gz = this.onBridge(this.px, this.py) ? this.bridgeHAt(this.px)
       : this._onWater ? Math.max(this.terrainH(this.px, this.py), -0.24)
       : this.terrainH(this.px, this.py);
-    this.camZ = gz + this.eyeZ;
+    this.camZ = this.flying && this.flyZ !== undefined ? this.flyZ : gz + this.eyeZ;
     R3D.render({
       px: this.px, py: this.py, camZ: this.camZ,
       angle: this.angle, pitch: this.pitch, time,
@@ -2561,7 +2680,7 @@ class WorldScene extends Phaser.Scene {
       if (time > (this._attackMsgCd || 0)) { this.toast('No monster in your sights.'); this._attackMsgCd = time + 1500; }
       return;
     }
-    const d = Math.hypot(t.x - this.px, t.y - this.py, this.eyeZ - 0.5); // altitude counts
+    const d = Math.hypot(t.x - this.px, t.y - this.py, this.agl() - 0.5); // altitude counts
     let fired = 0;
     const volleyColors = { Roderick: '#e8e8f0', Wren: '#e8d8a0', Serena: '#f0f0ff', Malwick: '#c080ff' };
     GameData.party.forEach((h, hi) => {
@@ -2819,12 +2938,12 @@ class WorldScene extends Phaser.Scene {
     const spell = SPELLS[h.quick];
     if (h.mp < spell.cost) { this.toast(`${h.name} lacks the mana for ${spell.name}!`); return; }
     const t = this.target;
-    const tDist = t ? Math.hypot(t.x - this.px, t.y - this.py, this.eyeZ - 0.5) : Infinity;
+    const tDist = t ? Math.hypot(t.x - this.px, t.y - this.py, this.agl() - 0.5) : Infinity;
     let ok = false;
 
     switch (h.quick) {
       case 'cleave': {
-        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 2.6);
+        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.agl() - 0.5) < 2.6);
         if (!victims.length) { this.toast('No foes within reach of the cleave!'); return; }
         victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(heroAtk(h) * 0.7) + this.buffAtk() + h.level + ri(0, 2) - this.enemyDef(v))));
         ok = true;
@@ -2864,14 +2983,14 @@ class WorldScene extends Phaser.Scene {
         this.landing = false;
         this.flyCaster = idx;
         this.flyDrainAt = time + 4000;
-        this.eyeZ = 0.75; // lift off
+        this.flyZ = this.terrainH(this.px, this.py) + 0.75; // lift off (absolute altitude)
 
         this.toast('The party takes wing! R/X (or PgUp/PgDn) to rise and dive — cast Fly again to land.');
         ok = true;
         break;
       }
       case 'frostnova': {
-        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.eyeZ - 0.5) < 3.5);
+        const victims = this.entities.filter(e => e.kind === 'enemy' && Math.hypot(e.x - this.px, e.y - this.py, this.agl() - 0.5) < 3.5);
         if (!victims.length) { this.toast('No foes near enough to freeze!'); return; }
         this.cameras.main.flash(140, 120, 180, 255);
         victims.forEach(v => {
@@ -3145,6 +3264,16 @@ class WorldScene extends Phaser.Scene {
       if (invAdd(id)) dropMsg = `, ${ITEM_TYPES[id].name}`;
     }
     this.toast(`${ENEMY_TYPES[e.type].name} slain! +${e.xp} XP, +${gold} gold${dropMsg}` + (notes.length ? ' — ' + notes.join(' ') : ''));
+    // Lord Aldric's charge: count dire wolves while the cull is on
+    if (e.type === 'wolf' && GameData.quests.wolfcull === 'active') {
+      GameData.flags.wolfKills = (GameData.flags.wolfKills || 0) + 1;
+      if (GameData.flags.wolfKills >= QUESTS.wolfcull.need) {
+        GameData.quests.wolfcull = 'ready';
+        this.toast(`That makes ${QUESTS.wolfcull.need} — return to Lord Aldric at Oakhearth!`);
+      } else {
+        this.toast(`Wolf culled (${GameData.flags.wolfKills}/${QUESTS.wolfcull.need}) — Aldric pays well.`);
+      }
+    }
     if (!this.entities.some(x => x.kind === 'enemy')) {
       this.time.delayedCall(1500, () => this.toast('The vale is at peace... you cleared every monster!'));
     }
@@ -3565,7 +3694,7 @@ class WorldScene extends Phaser.Scene {
       [T_PLANK]: '#9a7248', [T_STONE]: '#9aa0aa', [T_DOOR]: '#6b4526',
       [T_TIMBER_WIN]: '#d8cfb8', [T_STONE_WIN]: '#9aa0aa', [T_PLANK_WIN]: '#9a7248',
       [T_SIGN_TAVERN]: '#d8cfb8', [T_SIGN_SMITH]: '#9aa0aa', [T_SIGN_TRADE]: '#9a7248',
-      [T_BANNER]: '#d8cfb8', [T_CHIMNEY]: '#6a6e78',
+      [T_BANNER]: '#d8cfb8', [T_CHIMNEY]: '#6a6e78', [T_CASTLE]: '#7a8290',
     };
     for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
       const t = this.map[y][x];
@@ -3650,10 +3779,14 @@ class WorldScene extends Phaser.Scene {
     this.statusText.setText(`Gold: ${GameData.gold}   Foes left: ${foes}` +
       (this.flying ? '   |   FLYING (R/X rise-dive, cast Fly to land)' : ''));
     const q = GameData.quests.lostblade;
-    this.questText.setText(
-      q === 'available' ? 'Bram the Smith looks troubled — visit the smithy' :
-      q === 'active' ? 'Quest: The Lost Blade — goblin camp east, across the river ford' :
-      q === 'found' ? 'Quest: The Lost Blade — return the blade to Bram' : '');
+    const w2 = GameData.quests.wolfcull;
+    const lines = [];
+    if (q === 'available') lines.push('Bram the Smith looks troubled — visit the smithy');
+    else if (q === 'active') lines.push('Quest: The Lost Blade — goblin camp east, across the river ford');
+    else if (q === 'found') lines.push('Quest: The Lost Blade — return the blade to Bram');
+    if (w2 === 'active') lines.push(`Quest: The Wolves of Pinereach — ${GameData.flags.wolfKills || 0}/${QUESTS.wolfcull.need} culled`);
+    else if (w2 === 'ready') lines.push('Quest: The Wolves of Pinereach — report to Lord Aldric at Oakhearth');
+    this.questText.setText(lines.join('\n'));
   }
 
   grantXP(amount) {
@@ -3687,16 +3820,24 @@ class WorldScene extends Phaser.Scene {
   completeQuest(id) {
     if (GameData.quests[id] === 'done') return;
     GameData.quests[id] = 'done';
-    const mal = GameData.party[3];
-    if (!mal.spells.includes('fly')) {
-      mal.spells.push('fly');
-      mal.quick = 'fly';
+    if (id === 'lostblade') {
+      const mal = GameData.party[3];
+      if (!mal.spells.includes('fly')) {
+        mal.spells.push('fly');
+        mal.quick = 'fly';
+      }
+      const bi = GameData.inventory.indexOf('lostblade');
+      if (bi >= 0) GameData.inventory[bi] = null; // handed to Bram
+      const notes = this.grantXP(60);
+      this.toast('Quest complete! Malwick learns FLY — cast with 4, then R/X to rise and dive' +
+        (notes.length ? ' — ' + notes.join(' ') : ''));
+    } else if (id === 'wolfcull') {
+      GameData.gold += 350;
+      const scroll = invAdd('scroll_masshysteria');
+      const notes = this.grantXP(90);
+      this.toast('The wolves are culled! +350 gold' + (scroll ? ' and a guild scroll (Mass Hysteria)' : '') +
+        (notes.length ? ' — ' + notes.join(' ') : ''));
     }
-    const bi = GameData.inventory.indexOf('lostblade');
-    if (bi >= 0) GameData.inventory[bi] = null; // handed to Bram
-    const notes = this.grantXP(60);
-    this.toast('Quest complete! Malwick learns FLY — cast with 4, then R/X to rise and dive' +
-      (notes.length ? ' — ' + notes.join(' ') : ''));
     this.refreshHUD();
     this.saveGame();
   }
