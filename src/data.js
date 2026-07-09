@@ -181,7 +181,8 @@ function makeHero(name, cls, stats) {
 }
 
 const GameData = {
-  gold: 50,
+  gold: 1000, // test-mode purse: coach fares, scrolls, and weavings on the house
+
   party: [
     makeHero('Roderick', 'Knight',   { hp: 44, mp: 12, atk: 8, def: 4, spells: ['cleave', 'doubleshot'], range: 2.2, rec: 1000 }),
     makeHero('Wren',     'Archer',   { hp: 32, mp: 26, atk: 7, def: 2, spells: ['doubleshot', 'spark', 'thunderclap', 'stormcall', 'blink', 'haste', 'gust', 'icebolt', 'icelance', 'flashfreeze', 'cleansingrain', 'waterwalk'], range: 9, rec: 850 }),
@@ -284,7 +285,38 @@ const ZONES = {
     palette: { fog: 0x7a8a74, fogNear: 5, fogFar: 20, hemiSky: 0x8a9a84,
                hemiGround: 0x2a3324, hemiInt: 0.6, sun: 0xc8c8a8, sunInt: 0.45, water: 0x3a4a34 },
   },
+  shardfields: {
+    name: 'The Shardfields', arrive: [12.5, 36.5],
+    crystals: 70, // ember-shard spires litter the wastes
+    enemies: [['emberspawn', 0.55], ['wisp', 0.8], ['goblin', 1]],
+    // Xarthax's tower — he weaves here too (it IS his home; the Stoat is his outing)
+    settlements: [{
+      layout: [
+        '..kkk..',
+        '..kmk..',
+        '..kkk..',
+        '..kDk..',
+        '..,,,..',
+        '.,,,,,.',
+      ], x1: 70, y1: 12,
+    }],
+    villagers: [Object.assign({}, XARTHAX, {
+      st: 0, spot: [3, 4],
+      home: 'your crystal-crowned tower in the Shardfields',
+      locale: 'You are at your own tower in the Shardfields — violet wastes where the Ember fell thickest, shard-spires humming with wild magic. Emberspawn condense out of the air here; you find them fascinating.',
+    })],
+    buildings: [{ x1: 2, y1: 0, x2: 4, y2: 3, h: 3.1, color: 0x5a3a8a }],
+    palette: { fog: 0x9a86c8, fogNear: 9, fogFar: 30, hemiSky: 0xa890d8,
+               hemiGround: 0x3a2a54, hemiInt: 0.8, sun: 0xe8d0ff, sunInt: 0.62, water: 0x5a4a9a },
+  },
 };
+
+// hand-placed positions on the parchment world map (V), 700x430 canvas
+ZONES.embervale.worldPos = [420, 250];
+ZONES.pinereach.worldPos = [560, 150];
+ZONES.oakhearth.worldPos = [255, 180];
+ZONES.greymire.worldPos = [150, 310];
+ZONES.shardfields.worldPos = [140, 90];
 
 // coach routes: where each zone's coachman can send you, and the fare
 const TRAVEL = {
@@ -300,9 +332,13 @@ const TRAVEL = {
     { to: 'embervale', name: 'Emberfall', price: 60 },
     { to: 'pinereach', name: 'Pinereach', price: 30 },
     { to: 'greymire', name: 'Greymire', price: 50 },
+    { to: 'shardfields', name: 'The Shardfields', price: 80 },
   ],
   greymire: [
     { to: 'oakhearth', name: 'Oakhearth', price: 0 }, // nobody lingers in the mire
+  ],
+  shardfields: [
+    { to: 'oakhearth', name: 'Oakhearth', price: 0 }, // the return trip is a mercy
   ],
 };
 
@@ -387,6 +423,7 @@ const ENEMY_TYPES = {
   wolf:   { name: 'Dire Wolf', hp: 40, atk: 9, def: 2, xp: 24, gold: [8, 16], speed: 2.6, cd: 1100 },
   bear:   { name: 'Cave Bear', hp: 68, atk: 13, def: 3, xp: 44, gold: [14, 28], speed: 2.1, cd: 1400 },
   wisp:   { name: 'Mire Wisp', hp: 26, atk: 11, def: 0, xp: 30, gold: [10, 22], speed: 3.0, cd: 1150 },
+  emberspawn: { name: 'Emberspawn', hp: 48, atk: 14, def: 2, xp: 58, gold: [18, 34], speed: 2.4, cd: 1050 },
 };
 
 function xpForLevel(level) { return level * 40; }

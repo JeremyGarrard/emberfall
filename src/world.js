@@ -91,6 +91,7 @@ const SPRITE_META = {
   spellwright: { vDiv: 1.35 }, golem: { vDiv: 1.1 }, wisp: { vDiv: 2.0 }, totemArt: { vDiv: 1.6 },
   coachman: { vDiv: 1.32 }, carriage: { vDiv: 0.82 },
   lord: { vDiv: 1.3 }, mage2: { vDiv: 1.33 },
+  emberspawn: { vDiv: 1.35 }, shard: { vDiv: 1.3 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
   innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
   campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
@@ -1397,6 +1398,29 @@ class BootScene extends Phaser.Scene {
       ell(g, 13.5, 9.5, 0.9, 1, '#2a2018'); ell(g, 18.5, 9.5, 0.9, 1, '#2a2018');
     });
 
+    // Shardfields: crystal spires + the emberspawn that condense among them
+    makeArt('shard', g => {
+      tri(g, [16, 2, 9, 26, 23, 26], '#8a5fd0');
+      tri(g, [16, 2, 16, 26, 23, 26], '#6a3fb0');   // shadow facet
+      tri(g, [7, 12, 3, 27, 12, 27], '#a883e8');
+      tri(g, [25, 14, 20, 27, 29, 27], '#7a4fc0');
+      g.fillStyle = '#e8d8ff'; g.fillRect(14, 6, 2, 10); // glint
+      g.save(); g.globalAlpha = 0.35; ell(g, 16, 28, 12, 3, '#5a3a8a'); g.restore();
+    });
+    makeArt('emberspawn', g => {
+      const bd = g.createRadialGradient(30, 30, 4, 32, 36, 26);
+      bd.addColorStop(0, '#5a3a30'); bd.addColorStop(1, '#2a1a16');
+      g.fillStyle = bd; g.beginPath(); g.ellipse(32, 38, 19, 17, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#ff7020'; g.lineWidth = 2.2; g.lineCap = 'round'; // magma cracks
+      g.beginPath(); g.moveTo(20, 34); g.lineTo(28, 40); g.lineTo(24, 48); g.stroke();
+      g.beginPath(); g.moveTo(42, 30); g.lineTo(37, 40); g.lineTo(44, 46); g.stroke();
+      g.beginPath(); g.moveTo(30, 22); g.lineTo(33, 30); g.stroke();
+      g.fillStyle = '#ffb040'; ell(g, 26, 28, 3, 2.6, '#ffb040'); ell(g, 39, 28, 3, 2.6, '#ffb040');
+      ell(g, 25, 27, 1.2, 1.2, '#fff0c0'); ell(g, 38, 27, 1.2, 1.2, '#fff0c0');
+      g.fillStyle = '#ff5010'; g.beginPath(); g.ellipse(32, 43, 6, 3, 0, 0, Math.PI); g.fill(); // maw
+      g.save(); g.globalAlpha = 0.45; ell(g, 32, 56, 16, 3, '#ff7020'); g.restore();
+    }, 64);
+
     this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
@@ -1441,7 +1465,7 @@ class WorldScene extends Phaser.Scene {
     }
     if (this.save) {
       const s = this.save;
-      GameData.gold = s.gold;
+      GameData.gold = Math.max(s.gold, 500); // test-mode floor: never stranded broke
       GameData.inventory = s.inventory;
       GameData.flags = s.flags;
       GameData.quests = s.quests;
@@ -1481,6 +1505,7 @@ class WorldScene extends Phaser.Scene {
 
     const [spx, spy] = this.spawnPoint();
     this.px = spx; this.py = spy;
+    this.ensureStandable();
     this.angle = 0; // radians; 0 = east
     this.pitch = 0; // vertical look, radians
     this.eyeZ = 0.5;      // camera height above local terrain (0.5 = on foot)
@@ -1521,14 +1546,14 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,Q,E,M,R,X,UP,DOWN,LEFT,RIGHT,SPACE,ONE,TWO,THREE,FOUR,PAGE_UP,PAGE_DOWN');
     this.input.keyboard.on('keydown-M', () => { this.mmContainer.visible = !this.mmContainer.visible; });
     this.input.keyboard.on('keydown-T', () => {
-      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && !this.shopOpen && this.nearVillager) {
+      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && !this.shopOpen && !this.wmOpen && this.nearVillager) {
         this.openDialogue(this.nearVillager);
       }
     });
 
     // click: grab mouse-look if not locked, and swing at whatever's in your sights
     this.input.on('pointerdown', () => {
-      if (this.dialogOpen || this.dead || this.sbOpen || this.invOpen || this.shopOpen) return;
+      if (this.dialogOpen || this.dead || this.sbOpen || this.invOpen || this.shopOpen || this.wmOpen) return;
       if (document.pointerLockElement !== this.game.canvas) this.game.canvas.requestPointerLock();
       this.partyAttack(this.time.now);
     });
@@ -1546,7 +1571,7 @@ class WorldScene extends Phaser.Scene {
     this.time.addEvent({ delay: 650, loop: true, callback: () => this.wanderEnemies() });
     this.time.addEvent({ delay: 10000, loop: true, callback: () => this.saveGame() });
     this.input.keyboard.on('keydown-N', () => {
-      if (this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
+      if (this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen || this.wmOpen) return;
       if (this.newGameArm && this.time.now < this.newGameArm) {
         localStorage.removeItem('emberfall-save');
         location.reload();
@@ -1574,17 +1599,26 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-B', () => {
       if (this.dialogOpen || this.dead) return;
       if (this.shopOpen) this.closeShop();
+      if (this.wmOpen) this.closeWorldMap();
       if (this.sbOpen) this.closeSpellbook(); else this.openSpellbook();
     });
     this.input.keyboard.on('keydown-I', () => {
       if (this.dialogOpen || this.dead) return;
       if (this.shopOpen) this.closeShop();
+      if (this.wmOpen) this.closeWorldMap();
       if (this.invOpen) this.closeInventory(); else this.openInventory();
+    });
+    this.wmOpen = false;
+    this.wmItems = [];
+    this.input.keyboard.on('keydown-V', () => {
+      if (this.dialogOpen || this.dead) return;
+      if (this.wmOpen) this.closeWorldMap(); else this.openWorldMap();
     });
     this.input.keyboard.on('keydown-ESC', () => {
       if (this.sbOpen) this.closeSpellbook();
       if (this.invOpen) this.closeInventory();
       if (this.shopOpen) this.closeShop();
+      if (this.wmOpen) this.closeWorldMap();
     });
 
     this.compass = this.add.text(480, 8, '', {
@@ -1640,6 +1674,18 @@ class WorldScene extends Phaser.Scene {
 
   spawnPoint() { return this.zone.home ? [START.x, START.y] : this.zone.arrive.slice(); }
 
+  // if the spawn/arrival square is blocked (an NPC drifted there, a prop, a
+  // tree), sidestep to the nearest standable spot instead of being wedged
+  ensureStandable() {
+    if (this.canStand(this.px, this.py)) return;
+    for (let r = 0.6; r < 5; r += 0.45) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 7) {
+        const nx = this.px + Math.cos(a) * r, ny = this.py + Math.sin(a) * r;
+        if (this.canStand(nx, ny)) { this.px = nx; this.py = ny; return; }
+      }
+    }
+  }
+
   // this zone's authored settlements (home = the Emberfall list)
   zoneSetts() { return this.zone.home ? SETTLEMENTS : (this.zone.settlements || []); }
 
@@ -1686,7 +1732,8 @@ class WorldScene extends Phaser.Scene {
       this.buildMinimap();
       const [ax, ay] = this.zone.arrive;
       this.px = ax; this.py = ay; this.angle = 0; this.pitch = 0;
-      this.eyeZ = 0.5; this.flying = false; this.landing = false;
+      this.eyeZ = 0.5; this.flying = false; this.landing = false; this.flyZ = undefined;
+      this.ensureStandable();
       this.target = null;
       this.tempWalls = [];
       this.invulnUntil = this.time.now + 2000;
@@ -1736,7 +1783,8 @@ class WorldScene extends Phaser.Scene {
   }
 
   buildWildMap() {
-    // a themed wilderness. Marsh zones drown in pools; forests get two ponds.
+    // a themed wilderness — plus any authored landmark (Xarthax's tower)
+    this.stampSettlements();
     const [ax, ay] = this.zone.arrive;
     const blobs = this.zone.marsh
       ? Array.from({ length: 14 }, () => [gri(5, MAP_W - 6), gri(5, MAP_H - 6), gri(2, 5), gri(2, 4)])
@@ -1845,8 +1893,8 @@ class WorldScene extends Phaser.Scene {
         }
       }
     }
-    if (!this.zoneSetts().length) {
-      // wild zones: level a clearing around the coach arrival point
+    if (!this.zone.home) {
+      // every travelled zone: level a clearing around the coach arrival point
       const [ax, ay] = this.zone.arrive;
       for (let y = 0; y < H1; y++) {
         for (let x = 0; x < W1; x++) {
@@ -1910,14 +1958,13 @@ class WorldScene extends Phaser.Scene {
 
   // true inside (or within pad of) any walled settlement — the monster sanctuary
   inVillage(x, y, pad = 0) {
-    // sanctuary test — monsters never enter. Settled zones: any settlement
-    // stamp. Wild zones: the small clearing around the coach so you don't
-    // land in a bear's lap.
-    const setts = this.zone ? this.zoneSetts() : SETTLEMENTS;
-    if (!setts.length) {
+    // sanctuary test — monsters never enter: any settlement stamp, plus the
+    // coach clearing in every travelled zone (never land in a bear's lap)
+    if (this.zone && !this.zone.home) {
       const [ax, ay] = this.zone.arrive;
-      return Math.hypot(x - ax, y - ay) < 4 + pad;
+      if (Math.hypot(x - ax, y - ay) < 4 + pad) return true;
     }
+    const setts = this.zone ? this.zoneSetts() : SETTLEMENTS;
     return setts.some(s =>
       x >= s.x1 - pad && x <= s.x2 + 1 + pad &&
       y >= s.y1 - pad && y <= s.y2 + 1 + pad);
@@ -1978,9 +2025,11 @@ class WorldScene extends Phaser.Scene {
       if (treeOk(x, y)) add('tree', grand() < (dense ? 0.25 : 0.7) ? 'tree' : 'pine', x, y);
     }
 
-    // a coach post stands in every travelled zone (fixed uids 999900/999901)
+    // a coach post stands in every travelled zone (fixed uids 999900/999901),
+    // two tiles ASIDE from the arrival point — never on it (you'd spawn
+    // inside Jori and be wedged in place)
     const [cax, cay] = this.zone.arrive;
-    const cpx = Math.round(cax - 0.5), cpy = Math.round(cay - 0.5);
+    const cpx = Math.round(cax - 0.5) - 2, cpy = Math.round(cay - 0.5);
     pushNPC(COACHMAN, cpx, cpy, 999900);
     this.entities.push({
       kind: 'prop', type: 'carriage', art: 'carriage',
@@ -2084,9 +2133,34 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
-  // wild-zone contents: chests in the woods, the zone's own beasts prowling
+  // wild-zone contents: chests in the woods, the zone's own beasts prowling,
+  // plus landmark props/dwellers (Xarthax at his Shardfields tower)
   buildWildEntities(add) {
     const [ax, ay] = this.zone.arrive;
+    const CHAR_PROP = { U: 'fountain', W: 'well', L: 'lamp', K: 'campfire', X: 'tent' };
+    for (const s of this.zoneSetts()) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          const kind = CHAR_PROP[row[rx]];
+          if (kind === 'fountain') add('fountain', 'fountain', s.x1 + rx, s.y1 + ry);
+          else if (kind) add('prop', kind, s.x1 + rx, s.y1 + ry);
+        }
+      });
+    }
+    for (const v of (this.zone.villagers || [])) {
+      const st = this.zoneSetts()[v.st || 0];
+      const e = add('villager', v.art, st.x1 + v.spot[0], st.y1 + v.spot[1]);
+      e.name = v.name;
+      e.villager = v;
+      e.chat = [];
+    }
+    // ember-shard spires litter crystal country
+    for (let i = 0; i < (this.zone.crystals || 0); i++) {
+      const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
+      if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 1) && !this.entityAt(x, y)) {
+        add('prop', 'shard', x, y);
+      }
+    }
     let placed = 0, guard = 0;
     while (placed < 12 && guard++ < 2500) {
       const x = gri(2, MAP_W - 3), y = gri(2, MAP_H - 3);
@@ -2162,7 +2236,8 @@ class WorldScene extends Phaser.Scene {
   canStand(x, y) {
     const r = 0.28;
     // Water Walk (or already sinking mid-river) lets the party tread water
-    const aw = this.time.now < this.buffs.waterwalkUntil || this._onWater;
+    // (buffs may not exist yet — spawn placement runs early in create)
+    const aw = (this.buffs && this.time.now < this.buffs.waterwalkUntil) || this._onWater;
     if (!(this.walkableAt(Math.floor(x - r), Math.floor(y - r), aw) &&
           this.walkableAt(Math.floor(x + r), Math.floor(y - r), aw) &&
           this.walkableAt(Math.floor(x - r), Math.floor(y + r), aw) &&
@@ -2674,7 +2749,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   partyAttack(time) {
-    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen || this.wmOpen) return;
     const t = this.target;
     if (!t) {
       if (time > (this._attackMsgCd || 0)) { this.toast('No monster in your sights.'); this._attackMsgCd = time + 1500; }
@@ -2842,9 +2917,10 @@ class WorldScene extends Phaser.Scene {
         break;
       }
       case 'recall': {
-        this.flying = false; this.landing = false; this.eyeZ = 0.5; this.pitch = 0;
+        this.flying = false; this.landing = false; this.eyeZ = 0.5; this.pitch = 0; this.flyZ = undefined;
         const [rx, ry] = this.spawnPoint();
         this.px = rx; this.py = ry;
+        this.ensureStandable();
         this.toast('The world folds — you stand at safe ground.');
         break;
       }
@@ -2926,7 +3002,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   castSkill(idx, time) {
-    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen) return;
+    if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen || this.wmOpen) return;
     const h = GameData.party[idx];
     if (!h || h.hp <= 0) return;
     if (h.quick === 'fly' && this.flying) { // landing is always free
@@ -3316,7 +3392,8 @@ class WorldScene extends Phaser.Scene {
       GameData.party.forEach(h => { h.hp = Math.ceil(h.maxHp * 0.5); h.mp = h.maxMp; h.readyAt = 0; });
       const [dpx, dpy] = this.spawnPoint();
       this.px = dpx; this.py = dpy; this.angle = 0;
-      this.pitch = 0; this.eyeZ = 0.5; this.flying = false; this.landing = false;
+      this.pitch = 0; this.eyeZ = 0.5; this.flying = false; this.landing = false; this.flyZ = undefined;
+      this.ensureStandable();
       this.invulnUntil = this.time.now + 3000;
       shade.destroy(); msg.destroy();
       this.dead = false;
@@ -3465,6 +3542,73 @@ class WorldScene extends Phaser.Scene {
     this.sbContainer.setVisible(false);
     for (const t of this.sbItems) t.destroy();
     this.sbItems = [];
+  }
+
+  // ---------- the world map of Averron (V) ----------
+
+  openWorldMap() {
+    if (this.invOpen) this.closeInventory();
+    if (this.shopOpen) this.closeShop();
+    if (this.sbOpen) this.closeSpellbook();
+    this.wmOpen = true;
+    for (const t of this.wmItems) t.destroy();
+    this.wmItems = [];
+    const add = o => { this.wmItems.push(o.setDepth(3001)); return o; };
+    add(this.add.rectangle(480, 258, 960, 640, 0x06080e, 0.62).setOrigin(0.5).setDepth(3000));
+    add(this.add.image(480, 258, 'panel_ui').setDisplaySize(780, 470));
+    add(this.add.text(480, 62, '— THE FRONTIER OF AVERRON —', {
+      fontFamily: 'monospace', fontSize: '18px', fontStyle: 'bold', color: '#7a1f1f',
+    }).setOrigin(0.5));
+    add(this.add.text(480, 84, 'travel by coach — speak to Jori at any post  ·  V closes', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
+    }).setOrigin(0.5));
+
+    const ox = 130, oy = 68; // worldPos space -> screen
+    const g = add(this.add.graphics());
+    // coach roads (dashed)
+    const seen = new Set();
+    for (const [from, routes] of Object.entries(TRAVEL)) {
+      for (const r of routes) {
+        const key = [from, r.to].sort().join('|');
+        if (seen.has(key) || !ZONES[from].worldPos || !ZONES[r.to].worldPos) continue;
+        seen.add(key);
+        const a = ZONES[from].worldPos, b = ZONES[r.to].worldPos;
+        const segs = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 14);
+        g.lineStyle(3, 0x8a6f28, 0.75);
+        for (let i = 0; i < segs; i += 2) {
+          g.strokeLineShape(new Phaser.Geom.Line(
+            ox + a[0] + (b[0] - a[0]) * (i / segs), oy + a[1] + (b[1] - a[1]) * (i / segs),
+            ox + a[0] + (b[0] - a[0]) * Math.min(1, (i + 1) / segs), oy + a[1] + (b[1] - a[1]) * Math.min(1, (i + 1) / segs)));
+        }
+      }
+    }
+    // zone nodes: visited = inked in, unvisited = rumor
+    for (const [id, z] of Object.entries(ZONES)) {
+      if (!z.worldPos) continue;
+      const [zx, zy] = [ox + z.worldPos[0], oy + z.worldPos[1]];
+      const here = id === GameData.zone;
+      const visited = !!GameData.zoneState[id];
+      g.fillStyle(here ? 0xc9a227 : visited ? 0x6a5636 : 0x4a4032, 1);
+      g.fillCircle(zx, zy, here ? 11 : 8);
+      g.lineStyle(2, here ? 0x7a1f1f : 0x3a2c14, 1);
+      g.strokeCircle(zx, zy, here ? 11 : 8);
+      add(this.add.text(zx, zy + (here ? 18 : 14), z.name, {
+        fontFamily: 'monospace', fontSize: here ? '13px' : '11px', fontStyle: 'bold',
+        color: here ? '#7a1f1f' : visited ? '#3a2c14' : '#6a5a44',
+      }).setOrigin(0.5, 0));
+      if (here) {
+        add(this.add.text(zx, zy - 26, '☆ you are here', {
+          fontFamily: 'monospace', fontSize: '10px', color: '#7a1f1f', fontStyle: 'bold',
+        }).setOrigin(0.5));
+      }
+      if (z.town) add(this.add.text(zx, zy - 4.5, '♜', { fontSize: '10px', color: '#f4f0e0' }).setOrigin(0.5));
+    }
+  }
+
+  closeWorldMap() {
+    this.wmOpen = false;
+    for (const t of this.wmItems) t.destroy();
+    this.wmItems = [];
   }
 
   // ---------- inventory (I) ----------
