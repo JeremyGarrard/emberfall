@@ -123,6 +123,9 @@ EPIC 1 (faces — immediate wow) → 2.0 (unblocks spells + spellcraft) → 2.x 
 5.4+ towns → 6 content → 7 polish throughout. Pick by appetite; respect 🔒.
 
 ## Done
+Arched river bridge (piers, railings, camZ follows the arch) · fly ceiling 30 /
+9.5 tiles-s / 6.5-s climb · full-arsenal starting loadouts (60 spells across the
+party, save-merge grants them to old saves) ·
 Engine swap to three.js terrain · schools of magic + scrolls + buffs · FX system ·
 spell visuals · save/load (seeded, v2) · shop · quests #1 · MM7 UI · LLM villagers ·
 Fly/Water Walk · roofed village · Eastmarch camp · asset pipeline + dialogue

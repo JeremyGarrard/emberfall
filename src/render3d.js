@@ -218,34 +218,40 @@ const R3D = {
   buildBridges() {
     const cells = this.world.bridges;
     if (!cells || !cells.length) return;
-    const deckH = this.world.bridgeH || 0.06;
+    const hAt = this.world.bridgeHAt || (() => this.world.bridgeH || 0.3);
     const plank = new THREE.MeshLambertMaterial({ map: this.wallTex('plankwall') });
     const wood = new THREE.MeshLambertMaterial({ color: 0x6b4a2e });
+    const darkWood = new THREE.MeshLambertMaterial({ color: 0x4a3018 });
     const grp = new THREE.Group();
-    const xs = cells.map(c => c[0]), ys = cells.map(c => c[1]);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const ys = cells.map(c => c[1]);
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     for (const [x, y] of cells) {
-      // plank deck
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.14, 1.02), plank);
-      deck.position.set(x + 0.5, deckH, y + 0.5);
+      // arched plank deck: each cell's slab sits at the arch height and tilts
+      // to meet its neighbors, so the walkway reads as one curved span
+      const hL = hAt(x), hR = hAt(x + 1);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.12, 1.02), plank);
+      deck.position.set(x + 0.5, (hL + hR) / 2, y + 0.5);
+      deck.rotation.z = Math.atan2(hR - hL, 1);
       grp.add(deck);
-      // support posts plunging to the riverbed
-      for (const [ox, oy] of [[0.12, 0.12], [0.88, 0.88]]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), wood);
-        post.position.set(x + ox, deckH - 0.55, y + oy);
+      // stone-like piers plunging through the water to the riverbed
+      if ((x + y) % 2 === 0) {
+        const ph = (hL + hR) / 2 + 1.0;
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, ph, 0.16), darkWood);
+        post.position.set(x + 0.5, (hL + hR) / 2 - ph / 2, y + 0.5 + (y === minY ? -0.35 : 0.35));
         grp.add(post);
       }
-    }
-    // railings along the two long edges of the span
-    const horiz = (maxX - minX) >= (maxY - minY);
-    for (const side of [0, 1]) {
-      const rail = new THREE.Mesh(
-        horiz ? new THREE.BoxGeometry((maxX - minX) + 1.1, 0.32, 0.1)
-              : new THREE.BoxGeometry(0.1, 0.32, (maxY - minY) + 1.1), wood);
-      if (horiz) rail.position.set((minX + maxX) / 2 + 0.5, deckH + 0.28, (side ? maxY + 0.98 : minY + 0.02));
-      else rail.position.set((side ? maxX + 0.98 : minX + 0.02), deckH + 0.28, (minY + maxY) / 2 + 0.5);
-      grp.add(rail);
+      // railings follow the arch on the two outer edges
+      if (y === minY || y === maxY) {
+        const railZ = y === minY ? y + 0.04 : y + 0.96;
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.07, 0.07), wood);
+        rail.position.set(x + 0.5, (hL + hR) / 2 + 0.34, railZ);
+        rail.rotation.z = Math.atan2(hR - hL, 1);
+        grp.add(rail);
+        // balusters
+        const bal = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.07), wood);
+        bal.position.set(x + 0.5, (hL + hR) / 2 + 0.17, railZ);
+        grp.add(bal);
+      }
     }
     this.zoneGroup.add(grp);
   },
@@ -290,7 +296,7 @@ const R3D = {
 
   syncEntities(state) {
     const { entities, time, px, py } = state;
-    const { terrainH } = this.world;
+    const terrainH = this.world.groundAt || this.world.terrainH; // bridge-aware
     const seen = new Set();
     const anim = k => k === 'enemy' || k === 'ally' || k === 'dying' || k === 'decor';
     for (const e of entities) {

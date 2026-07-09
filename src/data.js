@@ -183,10 +183,10 @@ function makeHero(name, cls, stats) {
 const GameData = {
   gold: 50,
   party: [
-    makeHero('Roderick', 'Knight',   { hp: 44, mp: 6,  atk: 8, def: 4, spells: ['cleave'], range: 2.2, rec: 1000 }),
-    makeHero('Wren',     'Archer',   { hp: 32, mp: 10, atk: 7, def: 2, spells: ['doubleshot', 'spark', 'icebolt', 'thunderclap'], range: 9, rec: 850 }),
-    makeHero('Serena',   'Cleric',   { hp: 30, mp: 18, atk: 4, def: 2, spells: ['heal', 'bless', 'regen', 'sunray', 'greatheal'], range: 6, rec: 1200 }),
-    makeHero('Malwick',  'Sorcerer', { hp: 26, mp: 20, atk: 3, def: 1, spells: ['fireball', 'firebolt', 'ringfire', 'frostnova', 'rockblast', 'drain', 'curse'], range: 7, rec: 1300 }),
+    makeHero('Roderick', 'Knight',   { hp: 44, mp: 12, atk: 8, def: 4, spells: ['cleave', 'doubleshot'], range: 2.2, rec: 1000 }),
+    makeHero('Wren',     'Archer',   { hp: 32, mp: 26, atk: 7, def: 2, spells: ['doubleshot', 'spark', 'thunderclap', 'stormcall', 'blink', 'haste', 'gust', 'icebolt', 'icelance', 'flashfreeze', 'cleansingrain', 'waterwalk'], range: 9, rec: 850 }),
+    makeHero('Serena',   'Cleric',   { hp: 30, mp: 42, atk: 4, def: 2, spells: ['heal', 'greatheal', 'regen', 'bless', 'stimulant', 'vigor', 'secondwind', 'sunray', 'prismatic', 'hourofpower', 'aegis', 'consecrate', 'judgment', 'spiritlash', 'ghostblades', 'ancestorswatch', 'spiritwisp', 'raisedead', 'foresight', 'sleep', 'charmbeast', 'mindspike', 'masshysteria', 'astralrecall'], range: 6, rec: 1200 }),
+    makeHero('Malwick',  'Sorcerer', { hp: 26, mp: 55, atk: 3, def: 1, spells: ['fireball', 'firebolt', 'ringfire', 'emberspray', 'immolation', 'meteorswarm', 'frostnova', 'rockblast', 'stoneskin', 'roots', 'tremor', 'bulwark', 'earthspikes', 'golem', 'drain', 'curse', 'hex', 'bloodritual', 'shadowstep', 'plague', 'fly', 'armageddon'], range: 7, rec: 1300 }),
   ],
   flags: { hasLostBlade: false },
   quests: { lostblade: 'available' }, // available -> active -> found -> done
