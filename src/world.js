@@ -1478,6 +1478,8 @@ class WorldScene extends Phaser.Scene {
       GameData.party.forEach((h, i) => {
         for (const id of freshSpells[i]) if (!h.spells.includes(id)) h.spells.push(id);
         if (h.maxMp < freshMp[i]) { h.maxMp = freshMp[i]; h.mp = freshMp[i]; }
+        if (h.level < TEST_LEVEL) levelHeroTo(h, TEST_LEVEL); // test-mode veterans
+        if (!h.skillRank) h.skillRank = {};
       });
       GameData.zone = s.zone || 'embervale';
       GameData.zoneState = s.zoneState || {};
@@ -1659,6 +1661,7 @@ class WorldScene extends Phaser.Scene {
       level: h.level, xp: h.xp, hp: h.hp, maxHp: h.maxHp, mp: h.mp, maxMp: h.maxMp,
       atk: h.atk, def: h.def, spells: h.spells.slice(), quick: h.quick,
       weapon: h.weapon, armor: h.armor, readyAt: 0,
+      skillRank: h.skillRank || {},
     }));
     const s = {
       v: 3,
@@ -1737,10 +1740,17 @@ class WorldScene extends Phaser.Scene {
       this.target = null;
       this.tempWalls = [];
       this.invulnUntil = this.time.now + 2000;
+      // the road's rest: travel fully restores the living and rouses the fallen
+      GameData.party.forEach(hh => {
+        if (hh.hp <= 0) hh.hp = Math.ceil(hh.maxHp / 2);
+        else hh.hp = hh.maxHp;
+        hh.mp = hh.maxMp;
+        hh.readyAt = 0;
+      });
       this.saveGame();
       this.refreshHUD();
       this.cameras.main.fadeIn(300, 6, 8, 14);
-      this.toast(`The coach arrives at ${this.zone.name}.`);
+      this.toast(`The coach arrives at ${this.zone.name} — the road's rest restores the party.`);
     });
   }
 
@@ -2203,6 +2213,7 @@ class WorldScene extends Phaser.Scene {
       e.name = v.name;
       e.villager = v;
       e.chat = [];
+      if (v.roam) { e.roam = v.roam; e.homeGx = e.gx; e.homeGy = e.gy; } // city folk drift about
     }
     let placed = 0, guard = 0;
     while (placed < 4 && guard++ < 1500) {
@@ -2337,6 +2348,20 @@ class WorldScene extends Phaser.Scene {
         if (!this.walkableAt(nx, ny)) continue;
         if (this.entityAt(nx, ny)) continue;
         if (this.inVillage(nx + 0.5, ny + 0.5, 1)) continue;
+        e.gx = nx; e.gy = ny;
+        break;
+      }
+    }
+    // townsfolk with a roam radius drift around their haunt — a living city
+    for (const e of this.entities) {
+      if (e.kind !== 'villager' || !e.roam) continue;
+      if (Math.random() < 0.6) continue;
+      const choices = Phaser.Utils.Array.Shuffle(dirs.slice());
+      for (const [dx, dy] of choices) {
+        const nx = e.gx + dx, ny = e.gy + dy;
+        if (Math.abs(nx - e.homeGx) > e.roam || Math.abs(ny - e.homeGy) > e.roam) continue;
+        if (!this.walkableAt(nx, ny) || this.entityAt(nx, ny)) continue;
+        if (Math.hypot(nx + 0.5 - this.px, ny + 0.5 - this.py) < 1.2) continue; // don't shove the party
         e.gx = nx; e.gy = ny;
         break;
       }
@@ -2489,6 +2514,18 @@ class WorldScene extends Phaser.Scene {
             const s = Math.min(d, 2.2 * dt);
             e.x += (dx / d) * s; e.y += (dy / d) * s;
           }
+        }
+      }
+
+      // roaming townsfolk glide gently toward their next spot
+      for (const e of this.entities) {
+        if (e.kind !== 'villager' || !e.roam) continue;
+        const tx = e.gx + 0.5, ty = e.gy + 0.5;
+        const dv = Math.hypot(tx - e.x, ty - e.y);
+        if (dv > 0.02) {
+          const step = Math.min(dv, 0.85 * dt);
+          e.x += (tx - e.x) / dv * step;
+          e.y += (ty - e.y) / dv * step;
         }
       }
 
@@ -2828,21 +2865,27 @@ class WorldScene extends Phaser.Scene {
     return Math.max(0, e.def - (this.time.now < (e.hexUntil || 0) ? (e.hexAmount || 2) : 0));
   }
 
+  // guild training pays off: each rank in a school = +25% spell potency
+  rankMul(h, school) {
+    return 1 + 0.25 * ((h && h.skillRank && h.skillRank[school]) || 0);
+  }
+
   castFromSpec(idx, spec, target, time) {
     return applyEffects(this, idx, spec, target, time);
   }
 
   applyPrimitive(heroIdx, spec, ef, victims, target, time) {
     const h = GameData.party[heroIdx] || GameData.party[0];
+    const rk = this.rankMul(h, spec.school); // trained schools hit harder
     switch (ef.kind) {
       case 'damage':
-        victims.forEach(v => this.damageEnemy(v, Math.max(1, (ef.amount || 4) + h.level - (ef.true ? 0 : this.enemyDef(v)))));
+        victims.forEach(v => this.damageEnemy(v, Math.max(1, Math.round(((ef.amount || 4) + h.level) * rk) - (ef.true ? 0 : this.enemyDef(v)))));
         break;
       case 'dot':
         victims.forEach(v => {
           v.burnUntil = time + (ef.secs || 4) * 1000;
           v.burnNext = time + 1000;
-          v.burnPerSec = ef.perSec || 3;
+          v.burnPerSec = Math.round((ef.perSec || 3) * rk);
           v.burnHop = !!ef.hop;
         });
         break;
@@ -2850,9 +2893,10 @@ class WorldScene extends Phaser.Scene {
         const living = GameData.party.filter(x => x.hp > 0);
         const targets = ef.party ? living
           : [living.reduce((a, b) => (a.hp / a.maxHp <= b.hp / b.maxHp ? a : b))];
+        const amt = Math.round((ef.amount || 8) * rk);
         targets.forEach(x => {
-          x.hp = Math.min(x.maxHp, x.hp + (ef.amount || 8));
-          this.floatText(12 + GameData.party.indexOf(x) * 236 + 113, 545, `+${ef.amount || 8}`, '#80ff9a');
+          x.hp = Math.min(x.maxHp, x.hp + amt);
+          this.floatText(12 + GameData.party.indexOf(x) * 236 + 113, 545, `+${amt}`, '#80ff9a');
         });
         break;
       }
@@ -2874,7 +2918,7 @@ class WorldScene extends Phaser.Scene {
       case 'knockback': victims.forEach(v => this.knockback(v, ef.amount || 2)); break;
       case 'summon': this.summonAlly(ef.type === 'golem' ? 'golem' : 'wisp', ef.secs || 20); break;
       case 'drain': {
-        const amt = ef.amount || 8;
+        const amt = Math.round((ef.amount || 8) * rk);
         victims.forEach(v => this.damageEnemy(v, Math.max(1, amt)));
         h.hp = Math.min(h.maxHp, h.hp + amt);
         this.floatText(12 + heroIdx * 236 + 113, 545, `+${amt}`, '#c83a5a');
@@ -2945,7 +2989,7 @@ class WorldScene extends Phaser.Scene {
             const sx = cx3 + Math.cos(a) * rr, sy = cy3 + Math.sin(a) * rr;
             const gz = this.terrainH(sx, sy);
             FX.burst(sx, gz + 0.4, sy, spec.fx.color, 8, { speed: 3, grav: -6 });
-            this.enemiesNear(sx, sy, 1.1).forEach(v => this.damageEnemy(v, Math.max(1, (ef.amount || 6) - this.enemyDef(v))));
+            this.enemiesNear(sx, sy, 1.1).forEach(v => this.damageEnemy(v, Math.max(1, Math.round((ef.amount || 6) * rk) - this.enemyDef(v))));
           });
         }
         break;
@@ -3755,17 +3799,43 @@ class WorldScene extends Phaser.Scene {
     this.shopItems = [];
     this.shopContainer = this.add.container(0, 0).setDepth(3000).setVisible(false);
     this.shopContainer.add(this.add.image(480, 250, 'panel_ui'));
-    this.shopContainer.add(this.add.text(480, 54, "— ODO'S WARES —", {
-      fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
-    }).setOrigin(0.5));
   }
 
-  openShop() {
+  // any merchant can run a shop: pass their stock + name (defaults to Odo)
+  openShop(stock, keeper) {
     if (this.sbOpen) this.closeSpellbook();
     if (this.invOpen) this.closeInventory();
     this.shopOpen = true;
+    this.shopMode = 'wares';
+    this.shopStock = stock || SHOP_STOCK;
+    this.shopKeeper = keeper || 'Odo';
     this.refreshShop();
     this.shopContainer.setVisible(true);
+  }
+
+  // the guild hall: same panel, different business — train skill ranks
+  openTraining() {
+    if (this.sbOpen) this.closeSpellbook();
+    if (this.invOpen) this.closeInventory();
+    this.shopOpen = true;
+    this.shopMode = 'train';
+    this.refreshShop();
+    this.shopContainer.setVisible(true);
+  }
+
+  trainRank(heroIdx, school) {
+    const h = GameData.party[heroIdx];
+    h.skillRank = h.skillRank || {};
+    const rank = h.skillRank[school] || 0;
+    if (rank >= 3) return;
+    const cost = [100, 400, 1000][rank];
+    if (GameData.gold < cost) { this.toast('Orwin sniffs: the guild does not extend credit.'); return; }
+    GameData.gold -= cost;
+    h.skillRank[school] = rank + 1;
+    this.toast(`${h.name} advances to ${['Novice', 'Adept', 'Master'][rank]} of ${SCHOOLS[school].name} — spells +25% stronger!`);
+    this.refreshHUD();
+    this.refreshShop();
+    this.saveGame();
   }
 
   closeShop() {
@@ -3781,7 +3851,13 @@ class WorldScene extends Phaser.Scene {
     if (!this.shopOpen) return;
     const add = o => { this.shopItems.push(o.setDepth(3001)); return o; };
 
-    SHOP_STOCK.forEach((id, i) => {
+    if (this.shopMode === 'train') { this.refreshTraining(add); return; }
+
+    add(this.add.text(480, 54, `— ${this.shopKeeper.toUpperCase()}'S WARES —`, {
+      fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    this.shopStock.forEach((id, i) => {
       const it = ITEM_TYPES[id];
       const col = i % 2, row = Math.floor(i / 2);
       const x = 300 + col * 360, y = 106 + row * 44;
@@ -3814,13 +3890,62 @@ class WorldScene extends Phaser.Scene {
 
   buyItem(id) {
     const it = ITEM_TYPES[id];
-    if (GameData.gold < it.price) { this.toast('Odo tuts: not enough gold.'); return; }
+    if (GameData.gold < it.price) { this.toast(`${this.shopKeeper} tuts: not enough gold.`); return; }
     if (!invAdd(id)) { this.toast('Your packs are full!'); return; }
     GameData.gold -= it.price;
     this.toast(`Bought: ${it.name} for ${it.price} gold.`);
     this.refreshHUD();
     this.refreshShop();
     this.saveGame();
+  }
+
+  // the guild's ledger: every hero's schools, ranks as stars, click to train
+  refreshTraining(add) {
+    add(this.add.text(480, 54, '— THE GUILD OF THE NINE SCHOOLS —', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#3a2c14', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    add(this.add.text(480, 76, 'each rank: +25% spell power in that school · Novice 100g · Adept 400g · Master 1000g', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
+    }).setOrigin(0.5));
+
+    GameData.party.forEach((h, hi) => {
+      const y = 118 + hi * 82;
+      add(this.add.image(160, y + 18, 'pt_' + h.name.toLowerCase()).setDisplaySize(44, 44));
+      add(this.add.text(190, y - 2, h.name, {
+        fontFamily: 'monospace', fontSize: '13px', color: '#3a2c14', fontStyle: 'bold',
+      }));
+      const schools = HERO_SCHOOLS[h.name].filter(s => s !== 'martial');
+      if (!schools.length) {
+        add(this.add.text(190, y + 18, 'trusts steel over sorcery', {
+          fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
+        }));
+        return;
+      }
+      schools.forEach((sc, si) => {
+        const x = 190 + (si % 5) * 128, ry = y + 16 + Math.floor(si / 5) * 30;
+        const rank = (h.skillRank && h.skillRank[sc]) || 0;
+        const maxed = rank >= 3;
+        const cost = maxed ? 0 : [100, 400, 1000][rank];
+        const afford = !maxed && GameData.gold >= cost;
+        const chipColor = Phaser.Display.Color.HexStringToColor(SCHOOLS[sc].color).color;
+        const chip = add(this.add.rectangle(x + 56, ry + 10, 118, 26, chipColor, afford ? 0.28 : 0.10)
+          .setStrokeStyle(afford ? 2 : 1, afford ? chipColor : 0x6a5a38));
+        if (afford) {
+          chip.setInteractive({ useHandCursor: true });
+          chip.on('pointerdown', () => this.trainRank(hi, sc));
+        }
+        add(this.add.text(x + 4, ry + 4, SCHOOLS[sc].name, {
+          fontFamily: 'monospace', fontSize: '10px', fontStyle: 'bold', color: '#3a2c14',
+        }));
+        add(this.add.text(x + 62, ry + 4, '★'.repeat(rank) + '☆'.repeat(3 - rank) + (maxed ? '' : ` ${cost}g`), {
+          fontFamily: 'monospace', fontSize: '10px', color: maxed ? '#7a5a10' : afford ? '#28527a' : '#9a4040',
+        }));
+      });
+    });
+
+    add(this.add.text(480, 442, `Your gold: ${GameData.gold} · click an affordable school to train · Esc closes`, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#7a5a10', fontStyle: 'bold',
+    }).setOrigin(0.5));
   }
 
   // ---------- minimap ----------

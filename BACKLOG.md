@@ -86,9 +86,13 @@ The marquee LLM feature — **working end-to-end with the local LLM.**
 ## EPIC 5 — Towns, guilds, training, upgrades → `design/PROGRESSION.md`
 Makes gold matter and adds build depth. 🔒 EPIC 4 for the town zones.
 
-- **5.1 [M] Skill ranks.** `hero.skillRank[school]`, rank multiplier at cast
-  site, tier gating on learn/cast. No new zone needed — ship first.
-- **5.2 [M] Guild trainer NPC + training panel** (gold sink, level gates). 🔒5.1
+- **5.1 ✅ Skill ranks.** `hero.skillRank[school]` (0–3), `rankMul` = +25%/rank
+  applied in `applyPrimitive` (damage/dot/heal/drain/spikes). Persisted in save.
+  Tier gating on learn/cast still open if wanted.
+- **5.2 ✅ Guild trainer + training panel.** Magister Orwin (Oakhearth guild
+  hall) trains: shop panel's `train` mode — per-hero school chips, star ranks,
+  100/400/1000g. Shops generalized: any villager with `shopStock` sells
+  (Gerta arms, Pim potions, Vess scrolls).
 - **5.3 [S] Character sheet (C key)** — level/XP/ranks/gear per hero.
 - **5.4 [L] Town zones + guild halls + spell shops with tier/standing gates.**
   🔒4.6, 5.1

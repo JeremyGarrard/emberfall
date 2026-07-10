@@ -32,8 +32,12 @@ const Dialogue = {
     });
     this.srow = document.getElementById('dlg-shop');
     document.getElementById('dlg-shop-btn').addEventListener('click', () => {
+      // this.villager is the ENTITY; its .villager holds the config (stock/trainer)
+      const cfg = this.villager && (this.villager.villager || this.villager);
       this.close();
-      if (this.world) this.world.openShop();
+      if (!this.world || !cfg) return;
+      if (cfg.trainer) this.world.openTraining();
+      else this.world.openShop(cfg.shopStock, cfg.name && cfg.name.split(' ')[0]);
     });
     fetch('/api/llm').then(r => r.json()).then(j => { this.llm = j; }).catch(() => { this.llm = { available: false }; });
   },
@@ -66,8 +70,18 @@ const Dialogue = {
       this.addBubble('npc', entity.villager.greeting);
     }
 
-    // Odo runs a shop
-    this.srow.style.display = entity.villager.id === 'odo' ? 'flex' : 'none';
+    // merchants sell, the guild trains — one button, relabeled per host
+    const v0 = entity.villager;
+    const sbtn = document.getElementById('dlg-shop-btn');
+    if (v0.trainer) {
+      sbtn.innerHTML = '&#9733; Train at the guild (skill ranks)';
+      this.srow.style.display = 'flex';
+    } else if (v0.shopStock || v0.id === 'odo') {
+      sbtn.innerHTML = '&#128176; Browse ' + (v0.name ? v0.name.split(' ')[0] : 'the') + "'s wares";
+      this.srow.style.display = 'flex';
+    } else {
+      this.srow.style.display = 'none';
+    }
 
     // spellcraft hook (Xarthax weaves described spells into the world)
     this.crow.style.display = entity.villager.id === 'xarthax' ? 'flex' : 'none';

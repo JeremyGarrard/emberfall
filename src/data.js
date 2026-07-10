@@ -168,6 +168,7 @@ function makeHero(name, cls, stats) {
   return {
     name, cls,
     level: 1, xp: 0,
+    skillRank: {}, // per-school mastery 0-3 (train at a guild; scales spell power)
     hp: stats.hp, maxHp: stats.hp,
     mp: stats.mp, maxMp: stats.mp,
     atk: stats.atk, def: stats.def,
@@ -202,53 +203,140 @@ const GameData = {
 // walled settlement, no monsters. wild = themed wilderness. `arrive` is where
 // the coach drops you.
 
-// Oakhearth: a walled market town beneath Castle Oakhearth (Act 1 hub).
-// Legend: k tall castle wall · S stone · m stone window · T timber · n window ·
-// B plank · o plank window · D door · C chimney · ':' cobble · ',' dirt ·
-// W well · L lamp · '.' grass
+// Oakhearth: the BIG CITY — a walled seat beneath Castle Oakhearth (Act 1 hub).
+// Castle: two keep wings + a great hall, all enterable. Town: market stalls,
+// guild hall, inn, smithy, eight houses, a fountain plaza, teeming streets.
+// Legend: k castle wall · S stone · m stone win · T timber · n win · B plank ·
+// o plank win · D door · C chimney · a/b/c signs · ':' cobble · ',' dirt ·
+// U fountain · W well · L lamp · '.' grass
 const OAKHEARTH_LAYOUT = [
-  'kkkkkkkmmkkkkmmkkkkkkk',
-  'k::::::::::::::::::::k',
-  'k:::SSSSSmmSSSSS:::::k',
-  'k:::S::::::::::m:::::k',
-  'k:::m::::::::::S:::::k',
-  'k:::SSSSSDSSSSSS:::::k',
-  'k::::::::,:::::::::::k',
-  'kkkkkkkkkDkkkkkkkkkkkk',
-  '.....,,,,,............',
-  '.TTnTT.,,,.SSmSS......',
-  '.TDTTC.,,,.SSDSS......',
-  '.......,,,............',
-  '.BBoBB.,,,.TTnTT......',
-  '.BDBBB.,,,.TDTTT......',
-  '...L..,,,,..W.........',
-  '......,,,,............',
+  'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+  'k::::::::::::::::::::::::::::::::::::::k',
+  'k::SSSSSSmmSSSSSSS::::SSSSSmmSSSSSSS:::k',
+  'k::S:::::::::::::S::::S::::::::::::S:::k',
+  'k::m:::::::::::::m::::m::::::::::::m:::k',
+  'k::S:::::::::::::S::::S::::::::::::S:::k',
+  'k::SSSSSSSDSSSSSSS::::SSSSSSDSSSSSSS:::k',
+  'k::::::::::::::::::::::::::::::::::::::k',
+  'k::SSSSSSSDSSSSSSSSSSSSSSSSSDSSSSSSS:::k',
+  'k::S:::::::::::::::::::::::::::::::S:::k',
+  'k::S:::::::::::::::::::::::::::::::S:::k',
+  'k::S:::::::::::::::::::::::::::::::S:::k',
+  'k::SSSSSSSSSSSSSSSSDSSSSSSSSSSSSSSSS:::k',
+  'k::::::::::::::::::::::::::::::::::::::k',
+  'kkkkkkkkkkkkkkkkkkDDkkkkkkkkkkkkkkkkkkkk',
+  'S.................,,...................S',
+  'S.BBoBB..BBoBB...,,...SSSmSSS..TTnTTT..S',
+  'S.BcDBB..BBDcB...,,...SSSDSSS..TTaDTT..S',
+  'S................,,,,..................S',
+  'S.....::::::::::::::::::::::::::.......S',
+  'S.....::::::::::::U:::::::::::::L......S',
+  'S.....::::::::::::::::::::::::::.......S',
+  'S.....::::::::::::::::::::::::::.......S',
+  'S.TTnTT..BBoBB...,,...TTnTT...SSmSS....S',
+  'S.TDTTC..BDoBB...,,...TDTTT...SDmSS....S',
+  'S................,,....................S',
+  'S..BBoBB..TTnTT..,,..BBoBB..TTnTT......S',
+  'S..BDoBB..TDnTT..,,..BDoBB..TDnTT......S',
+  'S................,,......W.............S',
+  'S..SSbSS.........,,....TTnTTT..........S',
+  'S..SSDSSC........,,....TTDTTT..........S',
+  'S................,,....................S',
+  'S.......L........,,........L...........S',
+  'SSSSSSSSSSSSSSSSSSDDSSSSSSSSSSSSSSSSSSSS',
 ];
 
 const OAK_VILLAGERS = [
   {
-    id: 'aldric', name: 'Lord Aldric', art: 'lord', st: 0, spot: [12, 6],
-    home: 'the courtyard of Castle Oakhearth',
-    locale: 'You keep Oakhearth, a walled market town beneath your family\'s old castle, a coach-ride west of the Emberfall frontier. Its market square holds an inn, houses, and the mages\' guild hall.',
+    id: 'aldric', name: 'Lord Aldric', art: 'lord', st: 0, spot: [19, 10],
+    home: 'the great hall of Castle Oakhearth',
+    locale: 'You hold court in the great hall of Castle Oakhearth, seat of a walled city — market stalls, a guild hall, the Gilded Acorn inn, a smithy, and streets full of folk.',
     persona: 'the graying castellan of Oakhearth — courteous, tired, iron underneath. The wolf packs of Pinereach have grown bold enough to take riders on the road, and you want sword-hands to thin them.',
     specialty: 'wolfcull',
     greeting: 'Welcome to Oakhearth, wardens. Forgive the thin garrison — every spare blade watches the Pinereach road. Perhaps you are the answer to that.',
   },
   {
-    id: 'orwin', name: 'Magister Orwin', art: 'mage2', st: 0, spot: [13, 11],
-    home: 'the guild hall on Oakhearth\'s square',
-    locale: 'You keep the mages\' guild hall in Oakhearth, a walled market town with a castle, an inn, and a market square.',
-    persona: 'a precise, dry-witted guild magister who catalogues ember-shards and disapproves of Xarthax by name (though you keep his letters). You lecture gently about the nine schools of magic.',
-    specialty: 'magic',
-    greeting: 'Ah — travellers with mana on their fingers. Mind the carpets. What would you know of the Art?',
+    id: 'orwin', name: 'Magister Orwin', art: 'mage2', st: 0, spot: [25, 18], trainer: true,
+    home: 'the guild hall on the market square',
+    locale: 'You keep the mages\' guild hall in the walled city of Oakhearth, beneath the castle.',
+    persona: 'a precise, dry-witted guild magister who catalogues ember-shards and disapproves of Xarthax by name (though you keep his letters). You train adventurers in the schools of magic, for a fee.',
+    specialty: 'training',
+    greeting: 'Ah — travellers with mana on their fingers. Mind the carpets. The guild trains those who pay; ask, or browse the ranks.',
   },
   {
-    id: 'betha', name: 'Betha the Innkeeper', art: 'innkeep', st: 0, spot: [2, 11],
+    id: 'betha', name: 'Betha the Innkeeper', art: 'innkeep', st: 0, spot: [33, 18],
     home: 'the Gilded Acorn inn',
-    locale: 'You run the Gilded Acorn, the inn on Oakhearth\'s market square, in the shadow of the castle.',
+    locale: 'You run the Gilded Acorn, the inn on the market square of the walled city of Oakhearth.',
     persona: 'a brisk, warm innkeeper who hears every rumor that rides the coach road and repeats the best ones free with supper.',
     specialty: 'rumors',
     greeting: 'Come in out of the dust! Stew\'s hot, beds are clean, and the gossip is fresher than either.',
+  },
+  {
+    id: 'gerta', name: 'Gerta the Armorer', art: 'smith', st: 0, spot: [5, 31],
+    shopStock: ['shortsword', 'broadsword', 'huntbow', 'leather', 'chain'],
+    home: 'the city smithy',
+    locale: 'You keep the smithy in the walled city of Oakhearth, arming caravan guards and wardens.',
+    persona: 'a broad-shouldered, no-nonsense armorer; you judge people by how they keep their edges and respect Bram of Emberfall\'s work when you see it.',
+    specialty: 'arms',
+    greeting: 'Steel or leather? Speak up — the forge won\'t bank itself.',
+  },
+  {
+    id: 'pim', name: 'Pim the Alchemist', art: 'merchant', st: 0, spot: [4, 18],
+    shopStock: ['hpotion', 'mpotion'],
+    home: 'a market stall on the square',
+    locale: 'You sell draughts and philtres from a stall on Oakhearth\'s market square.',
+    persona: 'a twitchy, enthusiastic alchemist who is ALMOST sure the batches are stable. You give discounts to anyone with burn scars.',
+    specialty: 'potions',
+    greeting: 'Draughts! Philtres! Only one exploded this month — fine odds, friend, fine odds!',
+  },
+  {
+    id: 'vess', name: 'Vess the Scrollmonger', art: 'mage2', st: 0, spot: [11, 18],
+    shopStock: ['scroll_armageddon', 'scroll_raisedead', 'scroll_hourofpower', 'scroll_prismatic', 'scroll_waterwalk', 'scroll_roots'],
+    home: 'a scroll stall on the square',
+    locale: 'You deal scrolls from a stall on Oakhearth\'s market square — some of them even legally.',
+    persona: 'a soft-spoken scroll dealer with excellent penmanship and vague sourcing. Odo of Emberfall is a rival you pretend not to know.',
+    specialty: 'scrolls',
+    greeting: 'Ink, vellum, and other people\'s genius — browse freely, tear nothing.',
+  },
+  {
+    id: 'rook', name: 'Captain Rook', art: 'coachman', st: 0, spot: [19, 15],
+    home: 'the castle gate',
+    locale: 'You command the gate watch of the walled city of Oakhearth.',
+    persona: 'the flint-eyed captain of Oakhearth\'s gate watch; you count everyone in and out, and you are polite exactly once.',
+    specialty: 'watch',
+    greeting: 'Names and business. ...Wardens, is it? Then Oakhearth\'s glad of you. Mind the market crowd.',
+  },
+  {
+    id: 'milla', name: 'Milla the Baker', art: 'innkeep', st: 0, spot: [24, 25], roam: 3,
+    home: 'her bread cart by the plaza',
+    locale: 'You wheel a bread cart around the market plaza of Oakhearth.',
+    persona: 'a cheery baker who knows everyone\'s name and everyone\'s debts; your rye could stop an arrow and you\'re proud of it.',
+    specialty: 'bread',
+    greeting: 'Fresh loaves! Well — fresh this morning. Well. Fresh yesterday morning. Half price!',
+  },
+  {
+    id: 'tam', name: 'Old Tam', art: 'elder', st: 0, spot: [12, 20], roam: 2,
+    home: 'the fountain bench',
+    locale: 'You sun yourself by the fountain on Oakhearth\'s plaza, as you have for forty years.',
+    persona: 'an ancient ex-caravaneer who remembers when the Shardfields were farmland; half your stories are true and all of them are long.',
+    specialty: 'stories',
+    greeting: 'Sit, sit. Did I ever tell you about the winter the river froze SIDEWAYS?',
+  },
+  {
+    id: 'nib', name: 'Nib', art: 'child', st: 0, spot: [18, 25], roam: 4,
+    home: 'wherever the crowd is thickest',
+    locale: 'You dart around the streets of Oakhearth, running errands and hearing everything.',
+    persona: 'a quick, big-eyed street kid who runs messages for coppers and knows every shortcut and every guard\'s blind spot.',
+    specialty: 'streets',
+    greeting: 'Oi! You the wolf-slayers? Knew it. I know EVERYTHING. Copper for the good stuff.',
+  },
+  {
+    id: 'fen', name: 'Fen the Minstrel', art: 'merchant', st: 0, spot: [21, 21], roam: 3,
+    home: 'the fountain steps',
+    locale: 'You busk on the fountain plaza of Oakhearth, singing news for coin.',
+    persona: 'a threadbare minstrel who turns rumor into rhyme; you are composing a ballad about the party and cheerfully mangle the facts.',
+    specialty: 'songs',
+    greeting: '♪ Four wardens rode from Emberfall... ♪ — still workshopping the rest. What rhymes with "armageddon"?',
   },
 ];
 
@@ -264,16 +352,28 @@ const ZONES = {
                hemiGround: 0x22331c, hemiInt: 0.72, sun: 0xdfe6c4, sunInt: 0.6, water: 0x2c5240 },
   },
   oakhearth: {
-    name: 'Oakhearth', town: true, arrive: [17.5, 36.5],
-    settlements: [{ layout: OAKHEARTH_LAYOUT, x1: 8, y1: 26 }],
+    name: 'Oakhearth', town: true, arrive: [24.5, 47.5], // outside the south gate
+    settlements: [{ layout: OAKHEARTH_LAYOUT, x1: 6, y1: 12 }],
     villagers: OAK_VILLAGERS,
-    // roofs, relative to the town stamp (st 0)
+    // roofs, relative to the city stamp (st 0)
     buildings: [
-      { x1: 4, y1: 2, x2: 15, y2: 5, h: 2.35, color: 0x4a5a6e },   // the keep
-      { x1: 1, y1: 9, x2: 5, y2: 10, h: 1.25, color: 0x7a4a2a },   // house
-      { x1: 11, y1: 9, x2: 15, y2: 10, h: 1.35, color: 0x5a6a8a }, // guild hall
-      { x1: 1, y1: 12, x2: 5, y2: 13, h: 1.25, color: 0x6b4526 },  // the Gilded Acorn
-      { x1: 11, y1: 12, x2: 15, y2: 13, h: 1.25, color: 0x7a5a2a },// house
+      { x1: 3, y1: 2, x2: 17, y2: 6, h: 2.5, color: 0x4a5a6e },    // keep, west wing
+      { x1: 22, y1: 2, x2: 35, y2: 6, h: 2.5, color: 0x4a5a6e },   // keep, east wing
+      { x1: 3, y1: 8, x2: 35, y2: 12, h: 2.95, color: 0x3e4c60 },  // the great hall
+      { x1: 2, y1: 16, x2: 6, y2: 17, h: 1.1, color: 0x9a6428 },   // market stall
+      { x1: 9, y1: 16, x2: 13, y2: 17, h: 1.1, color: 0x8a5a3a },  // market stall
+      { x1: 22, y1: 16, x2: 28, y2: 17, h: 1.5, color: 0x5a6a8a }, // guild hall
+      { x1: 31, y1: 16, x2: 36, y2: 17, h: 1.45, color: 0x6b4526 },// the Gilded Acorn
+      { x1: 2, y1: 23, x2: 6, y2: 24, h: 1.25, color: 0x7a4a2a },
+      { x1: 9, y1: 23, x2: 13, y2: 24, h: 1.25, color: 0x7a5a2a },
+      { x1: 22, y1: 23, x2: 26, y2: 24, h: 1.25, color: 0x8a5a30 },
+      { x1: 30, y1: 23, x2: 34, y2: 24, h: 1.25, color: 0x6e5a40 },
+      { x1: 3, y1: 26, x2: 7, y2: 27, h: 1.25, color: 0x7a4a2a },
+      { x1: 10, y1: 26, x2: 14, y2: 27, h: 1.25, color: 0x8a6a3a },
+      { x1: 21, y1: 26, x2: 25, y2: 27, h: 1.25, color: 0x74522e },
+      { x1: 28, y1: 26, x2: 32, y2: 27, h: 1.25, color: 0x7a5a2a },
+      { x1: 3, y1: 29, x2: 7, y2: 30, h: 1.3, color: 0x6a6e78 },   // smithy
+      { x1: 23, y1: 29, x2: 28, y2: 30, h: 1.25, color: 0x7a4a2a },
     ],
     palette: { fog: 0xc8d4e8, fogNear: 12, fogFar: 40, hemiSky: 0xbfd8f8,
                hemiGround: 0x5a6a4a, hemiInt: 0.95, sun: 0xffeecc, sunInt: 0.85, water: 0x2f6fa8 },
@@ -349,6 +449,19 @@ const COACHMAN = {
   persona: 'a cheerful, road-worn carriage driver who ferries folk between the frontier holds. You know every rut and toll on the roads and love to talk of far places.',
   greeting: 'Climb aboard, friends! My team\'s rested and the roads are open. Where can I carry you today?',
 };
+
+// test mode: the party arrives as seasoned veterans — big pools, big numbers
+const TEST_LEVEL = 50;
+function levelHeroTo(h, target) {
+  while (h.level < target) {
+    h.level++;
+    h.maxHp += 6; h.atk += 1;
+    if (h.level % 2 === 0) h.def += 1;
+    h.maxMp += (h.maxMp >= 12 ? 4 : 2);
+  }
+  h.hp = h.maxHp; h.mp = h.maxMp;
+}
+GameData.party.forEach(h => levelHeroTo(h, TEST_LEVEL));
 
 // the party sets out with a modest kit
 GameData.party[0].weapon = 'shortsword';
