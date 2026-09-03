@@ -114,6 +114,37 @@ Fills the world. Mostly unblocked; authoring against the lore bible.
 - **6.6 [S] Inject LORE_COMMON** into every villager system prompt; give
   existing NPCs faction-aware facts. LORE.md.
 
+## EPIC 8 — The MM7 feel (gap analysis, ranked by impact)
+What MM7 has that we don't. In order — do 8.1 first.
+
+- **8.1 [L] DUNGEONS.** New zone type `indoor: true`: flat floor, ceiling plane,
+  no sky/terrain, near-black fog + torch props (PointLights, cap ~8), authored
+  corridor/room layout with doors, chests, a boss, and an exit tile back to the
+  surface zone. Entered via an entrance prop in a wild zone (cave mouth / crypt
+  door → `travelTo(dungeonId)`). First dungeon: **The Wolfmother's Den** under
+  Pinereach — a bear-den warren, Wolfmother boss (big wolf, 2× stats), the
+  quest hook already in LORE.md. Half of MM7 is dungeon time; we have none.
+- **8.2 [M] LOOT.** Randomized enchanted gear: prefix/suffix tables
+  ("Swift", "of Fire", "of the Bear" → stat/element bonuses), rarity tiers by
+  zone, chest loot tables per zone, **selling** to any merchant, new equip
+  slots (helm/boots/ring/amulet) on a paper doll. Chests must feel like a
+  slot-machine pull.
+- **8.3 [M] CHARACTER SHEET (C) + conditions.** Per-hero screen: stats, XP bar,
+  skill ranks, paper doll, resistances. Conditions: poisoned/asleep/weak/dead
+  with HUD icons; portraits react (grin on level-up, wince when hurt).
+- **8.4 [M] SOUND.** WebAudio synth, no assets: footsteps, per-school cast
+  tones, hit thuds, monster growls, UI clicks, and a procedural ambient
+  loop per zone palette (drone + sparse melody). Mute on U, saved.
+- **8.5 [M] DAY/NIGHT.** `worldTime` → sun arc, sky/fog tint, lamps + torches
+  glow after dark, night monsters +atk. Rest (camp key) to dawn.
+- **8.6 [M] COMBAT TEXTURE.** Ranged/caster enemies (goblin shaman via
+  projectileSpell), elemental resistances/weaknesses per monster type, group
+  leaders. The tactical layer.
+- **8.7 [M] QUEST LOG (J) + chains.** Proper quest screen, 3-quest chain per
+  town, and the Light/Dark path fork with the Ashen Court (LORE.md Act 3).
+- **8.8 [S] Test-mode switch.** `TEST_MODE` flag gating TEST_LEVEL/gold floor,
+  so a real difficulty curve can exist behind it.
+
 ## EPIC 7 — Polish
 - **7.1** Damage variance & crits (8% ×2, one shared helper).
 - **7.2** WebAudio synth SFX (steps/casts/hits, no asset files; mute on 'U', save it).
