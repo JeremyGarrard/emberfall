@@ -17,6 +17,7 @@ const WALL_HEIGHT = {
   10: 1.25, 11: 1.25, 12: 1.25, 13: 1.25,
   14: 1.25, 15: 1.25, 16: 1.25, 17: 1.25,
   18: 1.9, 19: 2.2, // 19 = castle curtain wall
+  20: 2.0,          // 20 = cave wall (dungeons)
 };
 
 const R3D = {
@@ -85,6 +86,27 @@ const R3D = {
     this.buildWalls();
     this.buildRoofs();
     this.buildBridges();
+    if (pal.indoor) this.buildCeiling();
+    // torchlight etc. (dungeons): point lights the Lambert/Phong surfaces catch
+    for (const l of (world.lights || []).slice(0, 12)) {
+      const pl = new THREE.PointLight(l.color || 0xffa040, l.intensity || 1.5, l.distance || 7);
+      pl.position.set(l.x, l.z || 1.2, l.y);
+      this.zoneGroup.add(pl);
+    }
+  },
+
+  // a rock ceiling over the whole map — dungeons only
+  buildCeiling() {
+    const { mapW, mapH } = this.world;
+    const tex = this.wallTex('rockwall').clone();
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(mapW / 2, mapH / 2);
+    tex.needsUpdate = true;
+    const geo = new THREE.PlaneGeometry(mapW, mapH);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex, color: 0x9a9088 }));
+    mesh.rotation.x = Math.PI / 2; // face down
+    mesh.position.set(mapW / 2, 2.05, mapH / 2);
+    this.zoneGroup.add(mesh);
   },
 
   // ---------- static geometry (all added to this.zoneGroup) ----------
@@ -191,6 +213,7 @@ const R3D = {
       10: 'doorwall', 11: 'timberwin', 12: 'stonewin', 13: 'plankwin',
       14: 'signtavern', 15: 'signsmith', 16: 'signtrade', 17: 'bannerwall', 18: 'rockwall',
       19: 'rockwall', // castle curtain
+      20: 'rockwall', // cave wall
     };
     const mats = {};
     const matFor = key => {
@@ -316,13 +339,15 @@ const R3D = {
 
       if (e.kind === 'enemy' || e.kind === 'ally') {
         yOff += Math.sin(time * 0.005 + (e.uid || 0) * 1.7) * hgt * 0.04; // idle bob
+        // sprites are unlit, so in a dungeon they sit in torchlit gloom
+        const dim = this.world.palette && this.world.palette.indoor ? 0.62 : 1;
         // hit flinch: brief scale-pop + red flash
         if (e.flinch && time < e.flinch) {
           const f = (e.flinch - time) / 160;
           sc = hgt * (1 + 0.2 * f);
-          s.material.color.setRGB(1, 1 - 0.55 * f, 1 - 0.55 * f);
-        } else if (s.material.color.r !== 1 || s.material.color.g !== 1) {
-          s.material.color.setRGB(1, 1, 1);
+          s.material.color.setRGB(dim, dim * (1 - 0.55 * f), dim * (1 - 0.55 * f));
+        } else if (s.material.color.r !== dim || s.material.color.g !== dim) {
+          s.material.color.setRGB(dim, dim, dim);
         }
         // attack lunge: hop toward the party
         if (e.lunge && time < e.lunge) {

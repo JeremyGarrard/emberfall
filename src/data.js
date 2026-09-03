@@ -137,6 +137,7 @@ const ITEM_TYPES = {
   hpotion:    { name: 'Healing Draught', kind: 'potion', heal: 22, icon: 'it_hpot',  price: 25 },
   mpotion:    { name: 'Mana Philtre',    kind: 'potion', mana: 14, icon: 'it_mpot',  price: 30 },
   emerald:    { name: 'Rough Emerald',   kind: 'valuable', gold: 35, icon: 'it_gem' },
+  wolfpelt:   { name: "Wolfmother's Pelt", kind: 'valuable', gold: 260, icon: 'it_gem' },
   lostblade:  { name: "Bram's Blade",    kind: 'quest', icon: 'it_blade' },
 };
 
@@ -340,6 +341,36 @@ const OAK_VILLAGERS = [
   },
 ];
 
+// The Wolfmother's Den — the first dungeon, a bear-warren under Pinereach.
+// Dungeon legend: '#' cave wall · ',' floor · '~' torch · '$' chest ·
+// 'v' dire wolf · 'u' cave bear · 'Q' the Wolfmother · 'E' exit to daylight
+const WOLFDEN_LAYOUT = [
+  '##############################',
+  '#,,,,,,#######################',
+  '#,E,,,,,,,,,,,################',
+  '#,,,,~,,,,,,,,,,,#############',
+  '#######,,,,,,,,,,,,,##########',
+  '########,v,,,####,,,,#########',
+  '########,,,,,,###,,,,,,#######',
+  '#####~,,,,,,,,,,,,,,,,,,,#####',
+  '####,,,,,,$,,,,#####,,,,,,####',
+  '####,,v,,,,,,,,#####,,u,,,,###',
+  '#####,,,,,,,,,,,,####,,,,,,,##',
+  '#######,,,,,,,,~,,,,,,,,,,,,,#',
+  '#########,,,,,,,,,,,,###,,,$,#',
+  '#########,,,,v,,,,,,,####,,,,#',
+  '##########,,,,,,,,#######,,,##',
+  '###########,,,,,,,#######,,###',
+  '###########,,,,,,,,#######,###',
+  '##########,,,,,,,,,,,######,##',
+  '#########,,~,,,,,,,,,,,,,,,,,#',
+  '#########,,,,,,Q,,,,,,,,,,$,,#',
+  '#########,,,$,,,,,,,,~,,,,,,,#',
+  '##########,,,,,,,,,,,,,,,,,,##',
+  '############,,,,,,,,,,,,,,####',
+  '##############################',
+];
+
 const ZONES = {
   embervale: {
     name: 'Embervale', home: true, arrive: [20.5, 36.5],
@@ -348,8 +379,17 @@ const ZONES = {
     name: 'Pinereach', arrive: [12.5, 36.5],
     dense: true, // thick pine forest
     enemies: [['wolf', 0.5], ['bear', 0.82], ['goblin', 1]],
+    // a cave mouth in the northern woods leads down to the Wolfmother's Den
+    portals: [{ x: 40, y: 18, to: 'wolfden', art: 'cavemouth', name: "The Wolfmother's Den" }],
     palette: { fog: 0x8ea89a, fogNear: 7, fogFar: 26, hemiSky: 0x9ab0c4,
                hemiGround: 0x22331c, hemiInt: 0.72, sun: 0xdfe6c4, sunInt: 0.6, water: 0x2c5240 },
+  },
+  wolfden: {
+    name: "The Wolfmother's Den", indoor: true, arrive: [33.5, 22.5],
+    parent: 'pinereach', // the exit climbs back out at the cave mouth
+    settlements: [{ layout: WOLFDEN_LAYOUT, x1: 30, y1: 20 }],
+    palette: { indoor: true, skyArt: 'darksky', fog: 0x050405, fogNear: 1.6, fogFar: 9.5,
+               hemiSky: 0x2a2a3a, hemiGround: 0x16100c, hemiInt: 0.5, sun: 0x000000, sunInt: 0 },
   },
   oakhearth: {
     name: 'Oakhearth', town: true, arrive: [24.5, 47.5], // outside the south gate
@@ -417,6 +457,7 @@ ZONES.pinereach.worldPos = [560, 150];
 ZONES.oakhearth.worldPos = [255, 180];
 ZONES.greymire.worldPos = [150, 310];
 ZONES.shardfields.worldPos = [140, 90];
+ZONES.wolfden.worldPos = [612, 118]; // a hole in the Pinereach hills
 
 // coach routes: where each zone's coachman can send you, and the fare
 const TRAVEL = {
@@ -537,6 +578,7 @@ const ENEMY_TYPES = {
   bear:   { name: 'Cave Bear', hp: 68, atk: 13, def: 3, xp: 44, gold: [14, 28], speed: 2.1, cd: 1400 },
   wisp:   { name: 'Mire Wisp', hp: 26, atk: 11, def: 0, xp: 30, gold: [10, 22], speed: 3.0, cd: 1150 },
   emberspawn: { name: 'Emberspawn', hp: 48, atk: 14, def: 2, xp: 58, gold: [18, 34], speed: 2.4, cd: 1050 },
+  wolfmother: { name: 'The Wolfmother', hp: 640, atk: 42, def: 12, xp: 900, gold: [220, 380], speed: 2.9, cd: 900, boss: true },
 };
 
 function xpForLevel(level) { return level * 40; }

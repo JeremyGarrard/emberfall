@@ -9,14 +9,17 @@ const T_ROCK = 5, T_FENCE = 6, T_TIMBER = 7, T_PLANK = 8, T_STONE = 9;
 const T_DOOR = 10, T_TIMBER_WIN = 11, T_STONE_WIN = 12, T_PLANK_WIN = 13;
 const T_SIGN_TAVERN = 14, T_SIGN_SMITH = 15, T_SIGN_TRADE = 16, T_BANNER = 17, T_CHIMNEY = 18;
 const T_CASTLE = 19; // tall castle curtain wall (Oakhearth)
+const T_CAVE = 20;   // cave wall (dungeons)
 
-// settlement-stamp legend, shared by every authored layout (village/camp/town)
+// settlement-stamp legend, shared by every authored layout (village/camp/town/dungeon)
 const CHAR_TILE = {
   F: T_FENCE, T: T_TIMBER, V: T_TIMBER, S: T_STONE, B: T_PLANK, k: T_CASTLE,
   D: T_DOOR, n: T_TIMBER_WIN, m: T_STONE_WIN, o: T_PLANK_WIN,
   a: T_SIGN_TAVERN, b: T_SIGN_SMITH, c: T_SIGN_TRADE, h: T_BANNER, C: T_CHIMNEY,
   ':': T_COBBLE, ',': T_DIRT, '=': T_WOOD,
   K: T_DIRT, X: T_DIRT, // campfire & tents stand on dirt (props supply the art)
+  '#': T_CAVE,           // dungeon walls; the rest are dungeon floor markers
+  '~': T_DIRT, '$': T_DIRT, v: T_DIRT, u: T_DIRT, Q: T_DIRT, E: T_DIRT,
 };
 const MAP_W = 96, MAP_H = 72;
 const BRIDGE_H = 0.3; // deck height at the bridge's ends (it arches higher mid-span)
@@ -92,6 +95,7 @@ const SPRITE_META = {
   coachman: { vDiv: 1.32 }, carriage: { vDiv: 0.82 },
   lord: { vDiv: 1.3 }, mage2: { vDiv: 1.33 },
   emberspawn: { vDiv: 1.35 }, shard: { vDiv: 1.3 },
+  cavemouth: { vDiv: 0.7 }, daylight: { vDiv: 0.8 }, torch: { vDiv: 1.9 }, wolfmother: { vDiv: 0.95 },
   elder: { vDiv: 1.35 }, smith: { vDiv: 1.3 }, child: { vDiv: 1.8 }, merchant: { vDiv: 1.35 },
   innkeep: { vDiv: 1.35 }, marta: { vDiv: 1.32 },
   campfire: { vDiv: 2.2 }, flame: { vDiv: 2.0 }, tent: { vDiv: 1.15 },
@@ -1421,6 +1425,48 @@ class BootScene extends Phaser.Scene {
       g.save(); g.globalAlpha = 0.45; ell(g, 32, 56, 16, 3, '#ff7020'); g.restore();
     }, 64);
 
+    // dungeon dressing: the black "sky" of a cave, portals, torches, the boss
+    makeArtWH('darksky', 8, 8, g => { g.fillStyle = '#07060a'; g.fillRect(0, 0, 8, 8); });
+    makeArt('cavemouth', g => {
+      // a ragged black arch in a heap of boulders
+      g.fillStyle = '#5a5f6a';
+      [[6, 44, 16, 14], [40, 40, 20, 18], [14, 24, 12, 12], [38, 22, 14, 12], [22, 12, 20, 10]]
+        .forEach(([x, y, w, h]) => { g.fillRect(x, y, w, h); g.fillStyle = '#6a6f7a'; g.fillRect(x, y, w, 3); g.fillStyle = '#5a5f6a'; });
+      g.fillStyle = '#3e424c'; g.fillRect(4, 56, 56, 8);
+      g.fillStyle = '#050407';
+      g.beginPath(); g.moveTo(18, 60); g.quadraticCurveTo(18, 22, 32, 20); g.quadraticCurveTo(46, 22, 46, 60); g.closePath(); g.fill();
+      g.strokeStyle = '#2a2c34'; g.lineWidth = 3; g.stroke();
+    }, 64);
+    makeArt('daylight', g => {
+      // the way out: a doorway of light cut in the dark
+      const gr = g.createRadialGradient(32, 40, 4, 32, 40, 34);
+      gr.addColorStop(0, '#fff8e0'); gr.addColorStop(0.5, '#e8d8a8'); gr.addColorStop(1, 'rgba(120,110,80,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#fffaf0'; g.fillRect(22, 14, 20, 46);
+      g.strokeStyle = '#3a3238'; g.lineWidth = 3; g.strokeRect(22, 14, 20, 46);
+    }, 64);
+    makeArt('torch', g => {
+      g.fillStyle = '#4a3018'; g.fillRect(14, 12, 4, 20);          // haft
+      g.fillStyle = '#6b4a2e'; g.fillRect(14, 12, 1.5, 20);
+      g.fillStyle = '#7a7f8a'; g.fillRect(11, 26, 10, 3);          // iron bracket
+      g.fillStyle = '#c9a227'; g.fillRect(12, 11, 8, 4);           // collar
+    });
+    makeArt('wolfmother', g => {
+      // the matriarch: twice the wolf, black-furred, eyes like coals
+      const bd = g.createLinearGradient(0, 18, 0, 54); bd.addColorStop(0, '#4a4650'); bd.addColorStop(1, '#1e1c22');
+      g.fillStyle = bd; g.beginPath(); g.ellipse(26, 38, 24, 15, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#15131a'; g.fillRect(10, 46, 6, 14); g.fillRect(22, 48, 6, 12); g.fillRect(36, 46, 6, 14);
+      const hd = g.createRadialGradient(44, 20, 2, 46, 26, 18); hd.addColorStop(0, '#5a5662'); hd.addColorStop(1, '#22202a');
+      g.fillStyle = hd; g.beginPath(); g.ellipse(46, 26, 15, 13, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#22202a'; tri(g, [38, 15, 33, 2, 46, 13]); tri(g, [56, 15, 61, 2, 50, 13]);
+      g.fillStyle = '#3a3640'; g.beginPath(); g.moveTo(53, 23); g.lineTo(64, 29); g.lineTo(53, 35); g.fill();
+      g.fillStyle = '#f4f0e8'; tri(g, [56, 32, 58, 40, 53, 33]); tri(g, [60, 31, 62, 38, 57, 32]); tri(g, [52, 33, 53, 39, 50, 34]);
+      ell(g, 43, 23, 3.2, 2.6, '#ff3020'); ell(g, 43, 23, 1.2, 1.2, '#ffe0c0');
+      g.strokeStyle = '#8a4a4a'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(30, 28); g.lineTo(36, 40); g.moveTo(18, 30); g.lineTo(22, 42); g.stroke(); // old scars
+      g.save(); g.globalAlpha = 0.45; g.fillStyle = '#100e14'; ell(g, 30, 60, 24, 3, '#100e14'); g.restore();
+    }, 64);
+
     this.applyAssetOverrides(); // real assets (if any) replace painters here
 
     // register everything the Phaser UI needs as textures
@@ -1548,7 +1594,11 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,Q,E,M,R,X,UP,DOWN,LEFT,RIGHT,SPACE,ONE,TWO,THREE,FOUR,PAGE_UP,PAGE_DOWN');
     this.input.keyboard.on('keydown-M', () => { this.mmContainer.visible = !this.mmContainer.visible; });
     this.input.keyboard.on('keydown-T', () => {
-      if (!this.dead && !this.dialogOpen && !this.sbOpen && !this.invOpen && !this.shopOpen && !this.wmOpen && this.nearVillager) {
+      if (this.dead || this.dialogOpen || this.sbOpen || this.invOpen || this.shopOpen || this.wmOpen) return;
+      if (this.nearPortal) {
+        const p = this.nearPortal.portal;
+        this.travelTo(p.to, { at: p.at, rest: false, verb: this.zone.indoor ? 'You climb back out into' : 'You descend into' });
+      } else if (this.nearVillager) {
         this.openDialogue(this.nearVillager);
       }
     });
@@ -1721,10 +1771,13 @@ class WorldScene extends Phaser.Scene {
       bridgeHAt: x => this.bridgeHAt(x),
       groundAt: (x, y) => this.onBridge(x, y) ? this.bridgeHAt(x) : this.terrainH(x, y),
       palette: this.zone.palette || null,
+      lights: this.zoneLights || [],
     };
   }
 
-  travelTo(zoneId) {
+  // opts: at [x,y] overrides the arrival point (portals), rest:false skips the
+  // coach's restorative rest, verb flavors the arrival toast
+  travelTo(zoneId, opts = {}) {
     if (zoneId === GameData.zone || !ZONES[zoneId]) return;
     // stash the zone we're leaving, regrow the destination, rebuild the 3D scene
     GameData.zoneState[GameData.zone] = { seed: this.worldSeed, gone: [...this.goneUids] };
@@ -1733,24 +1786,28 @@ class WorldScene extends Phaser.Scene {
       this.loadZoneData(zoneId);
       R3D.buildZone(this.zoneWorldDesc());
       this.buildMinimap();
-      const [ax, ay] = this.zone.arrive;
+      const [ax, ay] = opts.at || this.zone.arrive;
       this.px = ax; this.py = ay; this.angle = 0; this.pitch = 0;
       this.eyeZ = 0.5; this.flying = false; this.landing = false; this.flyZ = undefined;
       this.ensureStandable();
       this.target = null;
       this.tempWalls = [];
       this.invulnUntil = this.time.now + 2000;
-      // the road's rest: travel fully restores the living and rouses the fallen
-      GameData.party.forEach(hh => {
-        if (hh.hp <= 0) hh.hp = Math.ceil(hh.maxHp / 2);
-        else hh.hp = hh.maxHp;
-        hh.mp = hh.maxMp;
-        hh.readyAt = 0;
-      });
+      if (opts.rest !== false) {
+        // the road's rest: coach travel fully restores the living and rouses the fallen
+        GameData.party.forEach(hh => {
+          if (hh.hp <= 0) hh.hp = Math.ceil(hh.maxHp / 2);
+          else hh.hp = hh.maxHp;
+          hh.mp = hh.maxMp;
+          hh.readyAt = 0;
+        });
+      }
       this.saveGame();
       this.refreshHUD();
       this.cameras.main.fadeIn(300, 6, 8, 14);
-      this.toast(`The coach arrives at ${this.zone.name} — the road's rest restores the party.`);
+      this.toast(opts.rest === false
+        ? `${opts.verb || 'You enter'} ${this.zone.name}.`
+        : `The coach arrives at ${this.zone.name} — the road's rest restores the party.`);
     });
   }
 
@@ -1768,11 +1825,31 @@ class WorldScene extends Phaser.Scene {
     this.bridgeCells = [];
     this.bridgeSpan = null;
 
-    if (this.zone.home) this.buildHomeMap();
+    if (this.zone.indoor) this.buildDungeonMap();
+    else if (this.zone.home) this.buildHomeMap();
     else if (this.zone.town) this.buildTownMap();
     else this.buildWildMap();
 
     this.buildHeights();
+  }
+
+  buildDungeonMap() {
+    // solid rock everywhere, then carve the authored warren into it. Cave-wall
+    // tiles with no floor neighbour become plain rock (no wall box to draw).
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) this.map[y][x] = T_ROCK;
+    this.stampSettlements();
+    for (let y = 1; y < MAP_H - 1; y++) {
+      for (let x = 1; x < MAP_W - 1; x++) {
+        if (this.map[y][x] !== T_CAVE) continue;
+        let touchesFloor = false;
+        for (let dy = -1; dy <= 1 && !touchesFloor; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (this.map[y + dy][x + dx] < 5) { touchesFloor = true; break; }
+          }
+        }
+        if (!touchesFloor) this.map[y][x] = T_ROCK;
+      }
+    }
   }
 
   // any zone's authored settlements get stamped the same way
@@ -1857,6 +1934,7 @@ class WorldScene extends Phaser.Scene {
     const W1 = MAP_W + 1, H1 = MAP_H + 1;
     const h = [];
     for (let y = 0; y < H1; y++) h.push(new Float32Array(W1));
+    if (this.zone.indoor) { this.heights = h; return; } // dungeons: dead flat
 
     // gaussian mounds are the hills; a rising rim walls in the vale
     // (gri/grand are seeded — the same save regrows the same vale)
@@ -1904,12 +1982,16 @@ class WorldScene extends Phaser.Scene {
       }
     }
     if (!this.zone.home) {
-      // every travelled zone: level a clearing around the coach arrival point
-      const [ax, ay] = this.zone.arrive;
-      for (let y = 0; y < H1; y++) {
-        for (let x = 0; x < W1; x++) {
-          const d = Math.hypot(x - ax, y - ay);
-          if (d < 7) h[y][x] *= Math.min(1, d / 7);
+      // every travelled zone: level a clearing around the coach arrival point,
+      // and a smaller one under each portal (cave mouths sit on flat ground)
+      const spots = [[this.zone.arrive[0], this.zone.arrive[1], 7]]
+        .concat((this.zone.portals || []).map(p => [p.x + 0.5, p.y + 0.5, 4]));
+      for (const [ax, ay, rad] of spots) {
+        for (let y = 0; y < H1; y++) {
+          for (let x = 0; x < W1; x++) {
+            const d = Math.hypot(x - ax, y - ay);
+            if (d < rad) h[y][x] *= Math.min(1, d / rad);
+          }
         }
       }
     }
@@ -1974,7 +2056,8 @@ class WorldScene extends Phaser.Scene {
       const [ax, ay] = this.zone.arrive;
       if (Math.hypot(x - ax, y - ay) < 4 + pad) return true;
     }
-    const setts = this.zone ? this.zoneSetts() : SETTLEMENTS;
+    // a dungeon's stamp is the whole dungeon — only the entrance is safe there
+    const setts = !this.zone ? SETTLEMENTS : this.zone.indoor ? [] : this.zoneSetts();
     return setts.some(s =>
       x >= s.x1 - pad && x <= s.x2 + 1 + pad &&
       y >= s.y1 - pad && y <= s.y2 + 1 + pad);
@@ -1982,6 +2065,7 @@ class WorldScene extends Phaser.Scene {
 
   buildEntities() {
     this.entities = [];
+    this.zoneLights = []; // dungeons fill this with torchlight
     let uidCounter = 0; // creation order is seeded-deterministic, so uids are stable per save
     const add = (kind, type, gx, gy) => {
       const e = {
@@ -2011,6 +2095,18 @@ class WorldScene extends Phaser.Scene {
       });
     };
 
+    // portals (cave mouths etc.) go in first so no tree lands on the doorstep.
+    // Fixed uids: never in a gone-list, never shifting anything.
+    (this.zone.portals || []).forEach((p, i) => {
+      this.entities.push({
+        kind: 'portal', type: p.art, art: p.art, gx: p.x, gy: p.y,
+        x: p.x + 0.5, y: p.y + 0.5, vDiv: SPRITE_META[p.art].vDiv,
+        uid: 999800 + i, portal: p,
+      });
+    });
+
+    if (this.zone.indoor) { this.buildDungeonEntities(add); return; }
+
     // forest regions — oak and pine woods with clearings, plus scattered loners.
     // Wild zones (Pinereach) are dense and pine-heavy.
     const treeOk = (x, y) =>
@@ -2035,6 +2131,7 @@ class WorldScene extends Phaser.Scene {
       if (treeOk(x, y)) add('tree', grand() < (dense ? 0.25 : 0.7) ? 'tree' : 'pine', x, y);
     }
 
+    // (dungeons have no coach — you leave the way you came)
     // a coach post stands in every travelled zone (fixed uids 999900/999901),
     // two tiles ASIDE from the arrival point — never on it (you'd spawn
     // inside Jori and be wedged in place)
@@ -2221,6 +2318,38 @@ class WorldScene extends Phaser.Scene {
       if (this.map[y][x] === T_GRASS && !this.inVillage(x, y, 2) && !this.entityAt(x, y)) {
         add('chest', 'chest', x, y); placed++;
       }
+    }
+  }
+
+  // dungeon contents come straight off the layout: torches (with light),
+  // chests, the beasts, the boss, and the way out
+  buildDungeonEntities(add) {
+    this.zoneLights = [];
+    const parent = ZONES[this.zone.parent];
+    const back = parent && parent.portals && parent.portals.find(p => p.to === GameData.zone);
+    for (const s of this.zoneSetts()) {
+      s.layout.forEach((row, ry) => {
+        for (let rx = 0; rx < row.length; rx++) {
+          const ch = row[rx], gx = s.x1 + rx, gy = s.y1 + ry;
+          if (ch === '~') {
+            add('prop', 'torch', gx, gy);
+            const fl = add('decor', 'flame', gx, gy);
+            fl.zOff = 0.5;
+            this.zoneLights.push({ x: gx + 0.5, y: gy + 0.5, z: 1.25, color: 0xffa040, intensity: 1.7, distance: 7.5 });
+          } else if (ch === '$') add('chest', 'chest', gx, gy);
+          else if (ch === 'v') add('enemy', 'wolf', gx, gy);
+          else if (ch === 'u') add('enemy', 'bear', gx, gy);
+          else if (ch === 'Q') add('enemy', 'wolfmother', gx, gy);
+          else if (ch === 'E') {
+            this.entities.push({
+              kind: 'portal', type: 'daylight', art: 'daylight', gx, gy,
+              x: gx + 0.5, y: gy + 0.5, vDiv: SPRITE_META.daylight.vDiv, uid: 999810,
+              portal: { to: this.zone.parent, name: parent ? parent.name : 'daylight',
+                        at: back ? [back.x + 1.5, back.y + 1.5] : undefined },
+            });
+          }
+        }
+      });
     }
   }
 
@@ -2413,7 +2542,7 @@ class WorldScene extends Phaser.Scene {
         if (this.landing) target = this.flyZ - 6.5 * dt;
         const ground = this.terrainH(this.px, this.py);
         const minZ = this.minEyeAt(this.px, this.py); // local floor (walls, water hover)
-        this.flyZ = clamp(target, ground + Math.max(0.5, minZ), 30);
+        this.flyZ = clamp(target, ground + Math.max(0.5, minZ), this.zone.indoor ? 1.5 : 30); // mind the ceiling
         const agl = this.flyZ - ground; // height above the ground below you
         if (this.landing && minZ > 0.5 && agl <= minZ + 0.02) {
           this.landing = false;
@@ -2648,12 +2777,14 @@ class WorldScene extends Phaser.Scene {
       const looted = [];
       const picked = [];
       this.nearVillager = null;
+      this.nearPortal = null;
       let nearVillagerDist = 1.5;
       if (grounded) for (const e of this.entities) {
         const d = Math.hypot(e.x - this.px, e.y - this.py);
         if (e.kind === 'chest' && d < 0.75) looted.push(e);
         if (e.kind === 'item' && d < 0.8) picked.push(e);
         if (e.kind === 'villager' && d < nearVillagerDist) { this.nearVillager = e; nearVillagerDist = d; }
+        if (e.kind === 'portal' && d < 1.4) this.nearPortal = e;
         if (e.kind === 'fountain' && d < 1.0 && time > this.fountainCd) {
           if (GameData.party.some(h => h.hp < h.maxHp || h.mp < h.maxMp)) {
             GameData.party.forEach(h => { h.hp = h.maxHp; h.mp = h.maxMp; });
@@ -2704,7 +2835,10 @@ class WorldScene extends Phaser.Scene {
         this.saveGame();
       }
 
-      if (this.nearVillager) {
+      if (this.nearPortal) {
+        const verb = this.zone.indoor ? 'Climb out to' : 'Enter';
+        this.talkHint.setText(`[T] ${verb} ${this.nearPortal.portal.name}`).setAlpha(1);
+      } else if (this.nearVillager) {
         this.talkHint.setText(`[T] Talk to ${this.nearVillager.name}`).setAlpha(1);
       } else {
         this.talkHint.setAlpha(0);
@@ -3383,6 +3517,18 @@ class WorldScene extends Phaser.Scene {
         : (Math.random() < 0.5 ? 'hpotion' : 'mpotion');
       if (invAdd(id)) dropMsg = `, ${ITEM_TYPES[id].name}`;
     }
+    // a boss falls: the den is broken, the pelt is yours, the cull is served
+    if (ENEMY_TYPES[e.type].boss) {
+      GameData.flags.wolfmotherSlain = true;
+      if (invAdd('wolfpelt')) dropMsg += ", the Wolfmother's Pelt";
+      this.cameras.main.flash(300, 255, 210, 170);
+      this.cameras.main.shake(450, 0.012);
+      if (GameData.quests.wolfcull === 'active') {
+        GameData.flags.wolfKills = (GameData.flags.wolfKills || 0) + 3;
+        if (GameData.flags.wolfKills >= QUESTS.wolfcull.need) GameData.quests.wolfcull = 'ready';
+      }
+      this.time.delayedCall(1200, () => this.toast('THE WOLFMOTHER IS SLAIN. The packs of Pinereach are broken — Lord Aldric will want to hear of this.'));
+    }
     this.toast(`${ENEMY_TYPES[e.type].name} slain! +${e.xp} XP, +${gold} gold${dropMsg}` + (notes.length ? ' — ' + notes.join(' ') : ''));
     // Lord Aldric's charge: count dire wolves while the cull is on
     if (e.type === 'wolf' && GameData.quests.wolfcull === 'active') {
@@ -3646,6 +3792,7 @@ class WorldScene extends Phaser.Scene {
         }).setOrigin(0.5));
       }
       if (z.town) add(this.add.text(zx, zy - 4.5, '♜', { fontSize: '10px', color: '#f4f0e0' }).setOrigin(0.5));
+      if (z.indoor) add(this.add.text(zx, zy - 4.5, '▼', { fontSize: '9px', color: '#f4f0e0' }).setOrigin(0.5));
     }
   }
 
@@ -3964,6 +4111,7 @@ class WorldScene extends Phaser.Scene {
       [T_TIMBER_WIN]: '#d8cfb8', [T_STONE_WIN]: '#9aa0aa', [T_PLANK_WIN]: '#9a7248',
       [T_SIGN_TAVERN]: '#d8cfb8', [T_SIGN_SMITH]: '#9aa0aa', [T_SIGN_TRADE]: '#9a7248',
       [T_BANNER]: '#d8cfb8', [T_CHIMNEY]: '#6a6e78', [T_CASTLE]: '#7a8290',
+      [T_CAVE]: '#3a3a46',
     };
     for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
       const t = this.map[y][x];

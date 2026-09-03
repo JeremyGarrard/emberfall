@@ -117,13 +117,17 @@ Fills the world. Mostly unblocked; authoring against the lore bible.
 ## EPIC 8 — The MM7 feel (gap analysis, ranked by impact)
 What MM7 has that we don't. In order — do 8.1 first.
 
-- **8.1 [L] DUNGEONS.** New zone type `indoor: true`: flat floor, ceiling plane,
-  no sky/terrain, near-black fog + torch props (PointLights, cap ~8), authored
-  corridor/room layout with doors, chests, a boss, and an exit tile back to the
-  surface zone. Entered via an entrance prop in a wild zone (cave mouth / crypt
-  door → `travelTo(dungeonId)`). First dungeon: **The Wolfmother's Den** under
-  Pinereach — a bear-den warren, Wolfmother boss (big wolf, 2× stats), the
-  quest hook already in LORE.md. Half of MM7 is dungeon time; we have none.
+- **8.1 ✅ DUNGEONS — The Wolfmother's Den.** Zone type `indoor: true`: solid
+  rock + authored warren (`#` cave wall = T_CAVE 20, boundary-only boxes), flat
+  heights, rock ceiling plane, black close fog, `darksky`, torches (`~`) that
+  spawn real PointLights (cap 12), sprites dimmed in the gloom. Portals:
+  `zone.portals` (cave mouth in Pinereach, flat clearing under it) and the `E`
+  exit tile; `[T]` enters/climbs out via `travelTo(id, {at, rest:false})` —
+  no coach rest on foot. Layout markers spawn wolves/bear/chests/the
+  **Wolfmother** boss (`ENEMY_TYPES.boss`: pelt drop, counts 3 toward Aldric's
+  cull, screen shake). Per-zone gone-lists make kills/loot persist. **Next
+  dungeons are one layout + one portal entry each** — the Shardfields crypt
+  and Kaethrum Ruins are natural follow-ups.
 - **8.2 [M] LOOT.** Randomized enchanted gear: prefix/suffix tables
   ("Swift", "of Fire", "of the Bear" → stat/element bonuses), rarity tiers by
   zone, chest loot tables per zone, **selling** to any merchant, new equip
