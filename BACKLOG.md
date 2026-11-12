@@ -128,11 +128,16 @@ What MM7 has that we don't. In order — do 8.1 first.
   cull, screen shake). Per-zone gone-lists make kills/loot persist. **Next
   dungeons are one layout + one portal entry each** — the Shardfields crypt
   and Kaethrum Ruins are natural follow-ups.
-- **8.2 [M] LOOT.** Randomized enchanted gear: prefix/suffix tables
-  ("Swift", "of Fire", "of the Bear" → stat/element bonuses), rarity tiers by
-  zone, chest loot tables per zone, **selling** to any merchant, new equip
-  slots (helm/boots/ring/amulet) on a paper doll. Chests must feel like a
-  slot-machine pull.
+- **8.2 ✅ LOOT.** Enchanted gear = runtime-registered `ITEM_TYPES` defs
+  (`genLoot(tier, rarity?)`: base by zone `tier` × prefix/suffix affix tables,
+  rarity common/magic/rare/epic with price mult + stat boost), persisted in
+  `GameData.genItems` (pruned to held/worn on save) like crafted spells. Six
+  slots (`SLOTS`), paper doll in the pack screen with rarity frames,
+  `gearBonus`/`gearProcs` summed across slots (atk/def/hp/mp/rec/dodge/leech/
+  reflect + burn/poison/slow/daze procs on hits). Chests roll gear 60% of the
+  time with a rarity-colored `lootReveal` burst + toast; bears/emberspawn/wisps
+  carry gear 15%; bosses always drop EPIC. SELL tab on every merchant. Open:
+  tooltips on pack cells (7.5), set bonuses, identify/unidentified.
 - **8.3 [M] CHARACTER SHEET (C) + conditions.** Per-hero screen: stats, XP bar,
   skill ranks, paper doll, resistances. Conditions: poisoned/asleep/weak/dead
   with HUD icons; portraits react (grin on level-up, wince when hurt).

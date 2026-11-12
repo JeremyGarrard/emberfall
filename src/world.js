@@ -1061,6 +1061,51 @@ class BootScene extends Phaser.Scene {
       g.beginPath(); g.arc(16, 21, 7.5, 0, Math.PI * 2); g.fill();
       g.fillStyle = glow; ell(g, 13, 18, 2.5, 3, glow);
     };
+    makeArt('it_dagger', g => {
+      g.fillStyle = '#c8ccd4'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-1.5, -10, 3, 14); g.fillStyle = '#f0f2f6'; g.fillRect(-1.5, -10, 1.5, 14);
+      g.fillStyle = '#c9a227'; g.fillRect(-4, 4, 8, 2); g.fillStyle = '#4a2f16'; g.fillRect(-1.5, 6, 3, 6);
+      g.restore();
+    });
+    makeArt('it_hammer', g => {
+      g.fillStyle = '#6b4526'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-1.5, -4, 3, 18); g.fillStyle = '#8a8f98'; g.fillRect(-7, -12, 14, 9);
+      g.fillStyle = '#b8bec6'; g.fillRect(-7, -12, 14, 3); g.restore();
+    });
+    makeArt('it_staff', g => {
+      g.fillStyle = '#6b4526'; g.save(); g.translate(16, 16); g.rotate(-Math.PI / 4);
+      g.fillRect(-1.5, -8, 3, 22); g.restore();
+      ell(g, 22, 10, 4, 4, '#3ecfb0'); ell(g, 21, 9, 1.5, 1.5, '#d8fff4');
+    });
+    makeArt('it_robe', g => {
+      g.fillStyle = '#2a4a7a'; g.fillRect(9, 7, 14, 20); g.fillRect(5, 7, 6, 7); g.fillRect(21, 7, 6, 7);
+      g.fillStyle = '#1e3658'; g.fillRect(15, 7, 2, 20); g.fillStyle = '#d0b040'; g.fillRect(9, 25, 14, 2);
+    });
+    makeArt('it_plate', g => {
+      g.fillStyle = '#9aa2b0'; g.fillRect(8, 7, 16, 20); g.fillRect(4, 7, 6, 8); g.fillRect(22, 7, 6, 8);
+      g.fillStyle = '#c8ccd4'; g.fillRect(8, 7, 16, 3); g.fillRect(15, 10, 2, 17);
+      g.fillStyle = '#6a6f7a'; g.fillRect(8, 16, 16, 1.5);
+    });
+    makeArt('it_helm', g => {
+      ell(g, 16, 14, 10, 9, '#8d9099'); g.fillStyle = '#8d9099'; g.fillRect(6, 14, 20, 8);
+      g.fillStyle = '#c8ccd4'; g.fillRect(6, 14, 20, 2); g.fillStyle = '#5a5f6a'; g.fillRect(14, 16, 4, 9);
+      g.fillStyle = '#d0b040'; g.fillRect(14, 3, 4, 4);
+    });
+    makeArt('it_boots', g => {
+      g.fillStyle = '#6b4526'; g.fillRect(8, 6, 7, 16); g.fillRect(8, 20, 14, 6);
+      g.fillStyle = '#4a2f16'; g.fillRect(8, 24, 14, 2); g.fillStyle = '#8a6238'; g.fillRect(8, 6, 7, 3);
+      g.fillStyle = '#c9a227'; g.fillRect(9, 12, 5, 1.5);
+    });
+    makeArt('it_ring', g => {
+      g.strokeStyle = '#d0b040'; g.lineWidth = 4; g.beginPath(); g.arc(16, 18, 8, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = '#f0dc94'; g.lineWidth = 1.5; g.beginPath(); g.arc(16, 18, 8, Math.PI, Math.PI * 1.6); g.stroke();
+      ell(g, 16, 8, 3.5, 3.5, '#d94040'); ell(g, 15, 7, 1.2, 1.2, '#ffd0d0');
+    });
+    makeArt('it_amulet', g => {
+      g.strokeStyle = '#8a7a5e'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(8, 4); g.quadraticCurveTo(16, 14, 24, 4); g.stroke();
+      g.fillStyle = '#c9a227'; tri(g, [16, 12, 10, 20, 22, 20]); tri(g, [16, 28, 10, 20, 22, 20]);
+      ell(g, 16, 20, 3, 3, '#8a5fd0'); ell(g, 15, 19, 1, 1, '#e8d8ff');
+    });
     makeArt('it_hpot', g => paintPotion(g, '#a82430', '#e86a70'));
     makeArt('it_mpot', g => paintPotion(g, '#2848a8', '#6a90e8'));
     makeArt('it_gem', g => {
@@ -1473,6 +1518,7 @@ class BootScene extends Phaser.Scene {
     ['panel_ui', 'panel_hud', 'slot',
      'pt_roderick', 'pt_wren', 'pt_serena', 'pt_malwick',
      'it_sword', 'it_bsword', 'it_bow', 'it_leather', 'it_chain', 'it_hpot', 'it_mpot', 'it_gem', 'it_blade',
+     'it_dagger', 'it_hammer', 'it_staff', 'it_robe', 'it_plate', 'it_helm', 'it_boots', 'it_ring', 'it_amulet',
      'ic_cleave', 'ic_dshot', 'ic_heal', 'ic_fire', 'ic_frost', 'ic_fly',
      'ic_firebolt', 'ic_ringfire', 'ic_spark', 'ic_clap', 'ic_icebolt', 'ic_wwalk',
      'ic_rock', 'ic_stone', 'ic_roots', 'ic_regen', 'ic_gheal', 'ic_bless',
@@ -1516,6 +1562,11 @@ class WorldScene extends Phaser.Scene {
       GameData.flags = s.flags;
       GameData.quests = s.quests;
       if (Array.isArray(s.crafted)) GameData.craftedSpells = s.crafted;
+      if (Array.isArray(s.genItems)) { // enchanted loot must exist before packs/gear reference it
+        GameData.genItems = s.genItems;
+        for (const def of GameData.genItems) ITEM_TYPES[def.id] = def;
+      }
+      GameData.inventory = GameData.inventory.map(id => (id && ITEM_TYPES[id]) ? id : null);
       // newer builds ship bigger starting grimoires + mana pools — capture the
       // fresh defaults, then union them into the saved heroes (idempotent)
       const freshSpells = GameData.party.map(h => h.spells.slice());
@@ -1526,6 +1577,7 @@ class WorldScene extends Phaser.Scene {
         if (h.maxMp < freshMp[i]) { h.maxMp = freshMp[i]; h.mp = freshMp[i]; }
         if (h.level < TEST_LEVEL) levelHeroTo(h, TEST_LEVEL); // test-mode veterans
         if (!h.skillRank) h.skillRank = {};
+        for (const sl of SLOTS) if (h[sl] === undefined || (h[sl] && !ITEM_TYPES[h[sl]])) h[sl] = null;
       });
       GameData.zone = s.zone || 'embervale';
       GameData.zoneState = s.zoneState || {};
@@ -1703,6 +1755,14 @@ class WorldScene extends Phaser.Scene {
         : 'Welcome to Emberfall. The gate lies east — monsters prowl beyond the palisade!');
   }
 
+  // keep only enchanted defs still held or worn, so saves stay small
+  pruneGenItems() {
+    const live = new Set(GameData.inventory.filter(Boolean));
+    for (const h of GameData.party) for (const sl of SLOTS) if (h[sl]) live.add(h[sl]);
+    GameData.genItems = GameData.genItems.filter(d => live.has(d.id));
+    return GameData.genItems;
+  }
+
   saveGame() {
     if (this.dead) return;
     // fold the current zone's live gone-list back into zoneState before saving
@@ -1710,7 +1770,7 @@ class WorldScene extends Phaser.Scene {
     const party = GameData.party.map(h => ({
       level: h.level, xp: h.xp, hp: h.hp, maxHp: h.maxHp, mp: h.mp, maxMp: h.maxMp,
       atk: h.atk, def: h.def, spells: h.spells.slice(), quick: h.quick,
-      weapon: h.weapon, armor: h.armor, readyAt: 0,
+      weapon: h.weapon, armor: h.armor, helm: h.helm, boots: h.boots, ring: h.ring, amulet: h.amulet, readyAt: 0,
       skillRank: h.skillRank || {},
     }));
     const s = {
@@ -1718,6 +1778,7 @@ class WorldScene extends Phaser.Scene {
       gold: GameData.gold, inventory: GameData.inventory,
       flags: GameData.flags, quests: GameData.quests,
       party, crafted: GameData.craftedSpells,
+      genItems: this.pruneGenItems(),
       zone: GameData.zone, zoneState: GameData.zoneState,
     };
     try { localStorage.setItem('emberfall-save', JSON.stringify(s)); } catch (e) {}
@@ -2800,11 +2861,12 @@ class WorldScene extends Phaser.Scene {
         this.goneUids.add(c.uid);
         this.entities.splice(this.entities.indexOf(c), 1);
         let itemMsg = '';
-        if (Math.random() < 0.75) {
-          const far = dist(c.x, c.y, START.x, START.y) > 40;
-          const table = far
-            ? ['broadsword', 'chain', 'emerald', 'hpotion', 'mpotion', 'emerald']
-            : ['shortsword', 'leather', 'hpotion', 'hpotion', 'mpotion', 'emerald'];
+        if (Math.random() < 0.6) {
+          // the pull: gear rolled for this zone's tier, revealed with fanfare
+          const id = genLoot(this.zone.tier || 1);
+          if (invAdd(id)) { itemMsg = ` + ${ITEM_TYPES[id].name}`; this.lootReveal(id, c.x, c.y); }
+        } else {
+          const table = ['hpotion', 'hpotion', 'mpotion', 'emerald', 'emerald'];
           const id = table[ri(0, table.length - 1)];
           if (invAdd(id)) itemMsg = ` + ${ITEM_TYPES[id].name}`;
         }
@@ -2931,7 +2993,7 @@ class WorldScene extends Phaser.Scene {
     const volleyColors = { Roderick: '#e8e8f0', Wren: '#e8d8a0', Serena: '#f0f0ff', Malwick: '#c080ff' };
     GameData.party.forEach((h, hi) => {
       if (h.hp <= 0 || time < h.readyAt || d > h.range || t.hp <= 0) return;
-      h.readyAt = time + h.rec * this.hasteMul();
+      h.readyAt = time + h.rec * this.hasteMul() * gearBonus(h, 'rec');
       fired++;
       const ghost = time < this.buffs.ghostUntil ? 3 : 0; // Ghost Blades: spectral true damage
       if (FX.ready) {
@@ -2946,7 +3008,17 @@ class WorldScene extends Phaser.Scene {
           FX.burst(t.x, az, t.y, volleyColors[h.name] || '#e8e8e8', 8, { scale: 0.2 });
         }
       }
-      this.damageEnemy(t, Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - this.enemyDef(t)) + ghost);
+      const dmg = Math.max(1, heroAtk(h) + this.buffAtk() + h.level + ri(0, 3) - this.enemyDef(t)) + ghost;
+      this.damageEnemy(t, dmg);
+      // enchanted gear bites: procs and leech ride every landed blow
+      for (const proc of gearProcs(h)) {
+        if (proc === 'burn') { t.burnUntil = time + 4000; t.burnNext = time + 600; t.burnPerSec = Math.max(t.burnPerSec || 0, 4); }
+        else if (proc === 'poison') { t.burnUntil = time + 6000; t.burnNext = time + 600; t.burnPerSec = Math.max(t.burnPerSec || 0, 3); }
+        else if (proc === 'slow') t.slowUntil = time + 3000;
+        else if (proc === 'daze') t.nextAtk = Math.max(t.nextAtk || 0, time + 1500);
+      }
+      const leech = gearBonus(h, 'leech');
+      if (leech > 0 && h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + Math.round(dmg * leech));
     });
     if (!fired && time > (this._attackMsgCd || 0)) {
       this.toast(d > 2.2 ? 'Too far for Roderick — the others are recovering...' : 'The party is recovering...');
@@ -3517,6 +3589,12 @@ class WorldScene extends Phaser.Scene {
         : (Math.random() < 0.5 ? 'hpotion' : 'mpotion');
       if (invAdd(id)) dropMsg = `, ${ITEM_TYPES[id].name}`;
     }
+    // the stronger beasts carry gear; a boss ALWAYS drops something epic
+    const bossKill = !!ENEMY_TYPES[e.type].boss;
+    if (bossKill || (['bear', 'emberspawn', 'wisp'].includes(e.type) && Math.random() < 0.15)) {
+      const id = genLoot(bossKill ? 3 : (this.zone.tier || 1), bossKill ? 'epic' : undefined);
+      if (invAdd(id)) { dropMsg += `, ${ITEM_TYPES[id].name}`; this.lootReveal(id, e.x, e.y); }
+    }
     // a boss falls: the den is broken, the pelt is yours, the cull is served
     if (ENEMY_TYPES[e.type].boss) {
       GameData.flags.wolfmotherSlain = true;
@@ -3553,7 +3631,7 @@ class WorldScene extends Phaser.Scene {
     const targets = GameData.party.filter(h => h.hp > 0);
     if (!targets.length) return;
     const h = targets[ri(0, targets.length - 1)];
-    if (this.time.now < this.buffs.dodgeUntil && Math.random() < 0.25) {
+    if ((this.time.now < this.buffs.dodgeUntil && Math.random() < 0.25) || Math.random() < gearBonus(h, 'dodge')) {
       this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, 'MISS', '#c8e8ff');
       return;
     }
@@ -3561,6 +3639,8 @@ class WorldScene extends Phaser.Scene {
     const dmg = Math.max(1, atkVal + ri(-1, 2) - heroDef(h) - this.buffDef());
     if (this.time.now < this.buffs.reflectUntil) this.damageEnemy(e, Math.max(1, Math.round(dmg * 0.3)));
     h.hp = Math.max(0, h.hp - dmg);
+    const thorns = gearBonus(h, 'reflect');
+    if (thorns > 0) this.damageEnemy(e, Math.max(1, Math.round(dmg * thorns)));
     this.floatText(12 + GameData.party.indexOf(h) * 236 + 113, 545, `-${dmg}`, '#ff8080');
     this.tweens.add({ targets: this.dmgVignette, alpha: { from: 0.32, to: 0 }, duration: 300 });
     this.cameras.main.shake(80, 0.003);
@@ -3838,7 +3918,7 @@ class WorldScene extends Phaser.Scene {
     GameData.party.forEach((h, i) => {
       const x = 168 + i * 158, y = 76;
       const sel = i === this.invSel;
-      const frame = add(this.add.rectangle(x, y, 140, 128, 0x8a6f28, sel ? 0.25 : 0.06)
+      const frame = add(this.add.rectangle(x, y, 140, 152, 0x8a6f28, sel ? 0.25 : 0.06)
         .setOrigin(0.5, 0)
         .setStrokeStyle(sel ? 3 : 1, sel ? 0xc9a227 : 0x6a5a38))
         .setInteractive({ useHandCursor: true });
@@ -3849,13 +3929,17 @@ class WorldScene extends Phaser.Scene {
       }));
       add(this.add.text(x + 2, y + 30, `ATK ${heroAtk(h)}`, { fontFamily: 'monospace', fontSize: '11px', color: '#7a1f1f' }));
       add(this.add.text(x + 2, y + 46, `DEF ${heroDef(h)}`, { fontFamily: 'monospace', fontSize: '11px', color: '#28527a' }));
-      [['weapon', x - 24], ['armor', x + 24]].forEach(([slot, sx]) => {
-        const sy = y + 96;
-        const cell = add(this.add.image(sx, sy, 'slot')).setInteractive({ useHandCursor: true });
+      // paper doll: six slots — Weapon Armor Helm / Boots Ring Necklace
+      SLOTS.forEach((slot, si) => {
+        const sx = x - 40 + (si % 3) * 40, sy = y + 84 + Math.floor(si / 3) * 36;
+        const cell = add(this.add.image(sx, sy, 'slot').setDisplaySize(34, 34)).setInteractive({ useHandCursor: true });
         cell.on('pointerdown', () => this.unequip(i, slot));
-        if (h[slot]) add(this.add.image(sx, sy, ITEM_TYPES[h[slot]].icon).setDisplaySize(30, 30));
-        else add(this.add.text(sx, sy, slot === 'weapon' ? 'W' : 'A', {
-          fontFamily: 'monospace', fontSize: '12px', color: '#6a5a38',
+        const worn = h[slot] && ITEM_TYPES[h[slot]];
+        if (worn) {
+          if (worn.rarity) add(this.add.rectangle(sx, sy, 32, 32).setStrokeStyle(2, RARITY[worn.rarity].hex));
+          add(this.add.image(sx, sy, worn.icon).setDisplaySize(26, 26));
+        } else add(this.add.text(sx, sy, SLOT_LABEL[slot], {
+          fontFamily: 'monospace', fontSize: '11px', color: '#6a5a38',
         }).setOrigin(0.5));
       });
     });
@@ -3865,13 +3949,17 @@ class WorldScene extends Phaser.Scene {
       const gx = x0 + (idx % 8) * C, gy = y0 + Math.floor(idx / 8) * C;
       const cell = add(this.add.image(gx, gy, 'slot')).setInteractive({ useHandCursor: true });
       cell.on('pointerdown', () => this.clickItem(idx));
-      if (id) add(this.add.image(gx, gy, ITEM_TYPES[id].icon).setDisplaySize(30, 30));
+      if (id) {
+        const it = ITEM_TYPES[id];
+        if (it.rarity) add(this.add.rectangle(gx, gy, 36, 36).setStrokeStyle(2, RARITY[it.rarity].hex));
+        add(this.add.image(gx, gy, it.icon).setDisplaySize(30, 30));
+      }
     });
 
     add(this.add.text(480, 428, `Gold: ${GameData.gold}`, {
       fontFamily: 'monospace', fontSize: '16px', color: '#7a5a10', fontStyle: 'bold',
     }).setOrigin(0.5));
-    add(this.add.text(480, 452, 'pick a hero, then click gear to equip · potions heal that hero · gems sell · I closes', {
+    add(this.add.text(480, 452, 'pick a hero, click gear to wear it (W A H / B R N) · click a worn slot to doff · colored frames = enchanted · I closes', {
       fontFamily: 'monospace', fontSize: '11px', color: '#6a5636',
     }).setOrigin(0.5));
   }
@@ -3893,11 +3981,14 @@ class WorldScene extends Phaser.Scene {
       }
       GameData.inventory[idx] = null;
       this.toast(`${h.name} drinks the ${it.name}.`);
-    } else if (it.kind === 'weapon' || it.kind === 'armor') {
+    } else if (SLOTS.includes(it.kind)) {
       const prev = h[it.kind];
+      this.applyGear(h, prev, -1);
       h[it.kind] = id;
+      this.applyGear(h, id, +1);
       GameData.inventory[idx] = prev || null;
-      this.toast(`${h.name} equips the ${it.name}.`);
+      const st = itemStats(it);
+      this.toast(`${h.name} wears the ${it.name}${st ? ' (' + st + ')' : ''}.`);
     } else if (it.kind === 'valuable') {
       GameData.gold += it.gold;
       GameData.inventory[idx] = null;
@@ -3926,6 +4017,32 @@ class WorldScene extends Phaser.Scene {
     this.refreshInventory();
   }
 
+  // HP/MP bonuses live on the hero while the piece is worn (so the HUD's max is honest)
+  applyGear(h, id, sign) {
+    const it = id && ITEM_TYPES[id];
+    if (!it) return;
+    if (it.hp) { h.maxHp = Math.max(1, h.maxHp + sign * it.hp); h.hp = Math.min(h.hp + (sign > 0 ? it.hp : 0), h.maxHp); }
+    if (it.mp) { h.maxMp = Math.max(0, h.maxMp + sign * it.mp); h.mp = Math.min(h.mp + (sign > 0 ? it.mp : 0), h.maxMp); }
+    if (h.hp > 0) h.hp = Math.max(1, h.hp);
+  }
+
+  // the slot-machine moment: burst + ring + toast scaled to rarity
+  lootReveal(id, x, y) {
+    const it = ITEM_TYPES[id];
+    if (!it.rarity || it.rarity === 'common') return;
+    const R = RARITY[it.rarity];
+    const col = '#' + R.hex.toString(16).padStart(6, '0');
+    const gz = this.terrainH(x, y) + 0.4;
+    if (FX.ready) {
+      FX.burst(x, gz, y, col, it.rarity === 'epic' ? 34 : it.rarity === 'rare' ? 22 : 12, { speed: 2.2, life: 0.9, grav: -0.5 });
+      if (it.rarity !== 'magic') FX.ring(x, gz - 0.2, y, col, it.rarity === 'epic' ? 3 : 2);
+    }
+    this.time.delayedCall(350, () => {
+      this.toast(`✦ ${R.label} ✦ ${it.name} — ${itemStats(it)}`);
+      if (it.rarity === 'epic') this.cameras.main.flash(220, 180, 100, 255);
+    });
+  }
+
   unequip(heroIdx, slot) {
     const h = GameData.party[heroIdx];
     this.invSel = heroIdx;
@@ -3933,6 +4050,7 @@ class WorldScene extends Phaser.Scene {
       const free = GameData.inventory.indexOf(null);
       if (free < 0) { this.toast('Your packs are full!'); return; }
       GameData.inventory[free] = h[slot];
+      this.applyGear(h, h[slot], -1);
       h[slot] = null;
       this.refreshHUD();
     }
@@ -3954,6 +4072,7 @@ class WorldScene extends Phaser.Scene {
     if (this.invOpen) this.closeInventory();
     this.shopOpen = true;
     this.shopMode = 'wares';
+    this.shopTab = 'buy';
     this.shopStock = stock || SHOP_STOCK;
     this.shopKeeper = keeper || 'Odo';
     this.refreshShop();
@@ -4003,22 +4122,29 @@ class WorldScene extends Phaser.Scene {
     add(this.add.text(480, 54, `— ${this.shopKeeper.toUpperCase()}'S WARES —`, {
       fontFamily: 'monospace', fontSize: '22px', color: '#3a2c14', fontStyle: 'bold',
     }).setOrigin(0.5));
+    // buy / sell tabs — every merchant weighs your spoils
+    [['buy', 'BUY', 400], ['sell', 'SELL', 560]].forEach(([tab, label, tx]) => {
+      const sel = (this.shopTab || 'buy') === tab;
+      const chip = add(this.add.rectangle(tx, 82, 120, 22, 0x8a6f28, sel ? 0.35 : 0.08)
+        .setStrokeStyle(sel ? 2 : 1, sel ? 0xc9a227 : 0x6a5a38)).setInteractive({ useHandCursor: true });
+      chip.on('pointerdown', () => { this.shopTab = tab; this.refreshShop(); });
+      add(this.add.text(tx, 82, label, { fontFamily: 'monospace', fontSize: '11px', fontStyle: 'bold', color: '#3a2c14' }).setOrigin(0.5));
+    });
+    if (this.shopTab === 'sell') { this.refreshSell(add); return; }
 
     this.shopStock.forEach((id, i) => {
       const it = ITEM_TYPES[id];
       const col = i % 2, row = Math.floor(i / 2);
-      const x = 300 + col * 360, y = 106 + row * 44;
+      const x = 300 + col * 360, y = 118 + row * 44;
       const afford = GameData.gold >= it.price;
       const box = add(this.add.rectangle(x, y, 336, 38, afford ? 0x8a6f28 : 0x4a4032, afford ? 0.14 : 0.08)
         .setStrokeStyle(1, afford ? 0x8a6f28 : 0x6a5a38))
         .setInteractive({ useHandCursor: true });
       box.on('pointerdown', () => this.buyItem(id));
       add(this.add.image(x - 144, y, it.icon).setDisplaySize(26, 26));
-      const stat = it.kind === 'scroll' ? `teaches ${SPELLS[it.spell].name}`
-        : it.atk ? `+${it.atk} ATK` : it.def ? `+${it.def} DEF`
-        : it.heal ? `heals ${it.heal}` : `restores ${it.mana} mp`;
+      const stat = itemStats(it);
       add(this.add.text(x - 124, y - 14, it.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#3a2c14', fontStyle: 'bold',
+        fontFamily: 'monospace', fontSize: '12px', color: itemColor(it), fontStyle: 'bold',
       }));
       add(this.add.text(x - 124, y + 2, stat, { fontFamily: 'monospace', fontSize: '10px', color: '#28527a' }));
       add(this.add.text(x + 158, y, it.price + 'g', {
@@ -4033,6 +4159,54 @@ class WorldScene extends Phaser.Scene {
     add(this.add.text(480, 442, 'click a ware to buy it · scrolls teach spells (use from your pack) · Esc closes', {
       fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
     }).setOrigin(0.5));
+  }
+
+  // sell tab: everything in the packs save quest goods, at half price (gems full)
+  refreshSell(add) {
+    const sellable = [];
+    GameData.inventory.forEach((id, idx) => { if (id && ITEM_TYPES[id].kind !== 'quest') sellable.push([id, idx]); });
+    if (!sellable.length) {
+      add(this.add.text(480, 220, 'Your packs hold nothing worth coin.', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#6a5636',
+      }).setOrigin(0.5));
+    }
+    sellable.slice(0, 14).forEach(([id, idx], i) => {
+      const it = ITEM_TYPES[id];
+      const price = it.gold || Math.max(1, Math.round((it.price || 10) * 0.5));
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = 300 + col * 360, y = 118 + row * 44;
+      const box = add(this.add.rectangle(x, y, 336, 38, 0x8a6f28, 0.14)
+        .setStrokeStyle(it.rarity ? 2 : 1, it.rarity ? RARITY[it.rarity].hex : 0x8a6f28))
+        .setInteractive({ useHandCursor: true });
+      box.on('pointerdown', () => this.sellItem(idx));
+      add(this.add.image(x - 144, y, it.icon).setDisplaySize(26, 26));
+      add(this.add.text(x - 124, y - 14, it.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: itemColor(it), fontStyle: 'bold',
+      }));
+      add(this.add.text(x - 124, y + 2, itemStats(it) || it.kind, { fontFamily: 'monospace', fontSize: '10px', color: '#28527a' }));
+      add(this.add.text(x + 158, y, '+' + price + 'g', {
+        fontFamily: 'monospace', fontSize: '13px', fontStyle: 'bold', color: '#4a7a2a',
+      }).setOrigin(1, 0.5));
+    });
+    add(this.add.text(480, 418, `Your gold: ${GameData.gold}`, {
+      fontFamily: 'monospace', fontSize: '15px', color: '#7a5a10', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    add(this.add.text(480, 442, 'click a thing to sell it · half what it cost, full value for gems and pelts · Esc closes', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6a5636',
+    }).setOrigin(0.5));
+  }
+
+  sellItem(idx) {
+    const id = GameData.inventory[idx];
+    if (!id) return;
+    const it = ITEM_TYPES[id];
+    const price = it.gold || Math.max(1, Math.round((it.price || 10) * 0.5));
+    GameData.inventory[idx] = null;
+    GameData.gold += price;
+    this.toast(`${this.shopKeeper} weighs the ${it.name}: +${price} gold.`);
+    this.refreshHUD();
+    this.refreshShop();
+    this.saveGame();
   }
 
   buyItem(id) {

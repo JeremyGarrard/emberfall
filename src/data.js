@@ -128,12 +128,32 @@ const SCROLL_PRICE = {
 };
 
 // ---- items: equipment adds real stats, potions restore, valuables sell ----
+// Gear bases carry a `tier` (1 frontier, 2 wilds, 3 deep): loot rolls pick a
+// base by the zone's tier and may enchant it (genLoot). Six equipment slots.
+const SLOTS = ['weapon', 'armor', 'helm', 'boots', 'ring', 'amulet'];
+const SLOT_LABEL = { weapon: 'W', armor: 'A', helm: 'H', boots: 'B', ring: 'R', amulet: 'N' };
 const ITEM_TYPES = {
-  shortsword: { name: 'Short Sword',     kind: 'weapon', atk: 2, icon: 'it_sword',   price: 70 },
-  broadsword: { name: 'Broadsword',      kind: 'weapon', atk: 4, icon: 'it_bsword',  price: 200 },
-  huntbow:    { name: 'Hunting Bow',     kind: 'weapon', atk: 3, icon: 'it_bow',     price: 120 },
-  leather:    { name: 'Leather Jerkin',  kind: 'armor',  def: 1, icon: 'it_leather', price: 60 },
-  chain:      { name: 'Chain Shirt',     kind: 'armor',  def: 3, icon: 'it_chain',   price: 160 },
+  dagger:     { name: 'Dagger',          kind: 'weapon', atk: 1, icon: 'it_dagger',  price: 30,  tier: 1 },
+  shortsword: { name: 'Short Sword',     kind: 'weapon', atk: 2, icon: 'it_sword',   price: 70,  tier: 1 },
+  huntbow:    { name: 'Hunting Bow',     kind: 'weapon', atk: 3, icon: 'it_bow',     price: 120, tier: 1 },
+  broadsword: { name: 'Broadsword',      kind: 'weapon', atk: 4, icon: 'it_bsword',  price: 200, tier: 2 },
+  longbow:    { name: 'Longbow',         kind: 'weapon', atk: 5, icon: 'it_bow',     price: 260, tier: 2 },
+  warhammer:  { name: 'Warhammer',       kind: 'weapon', atk: 6, icon: 'it_hammer',  price: 320, tier: 2 },
+  staff:      { name: 'Ashwood Staff',   kind: 'weapon', atk: 3, mp: 12, icon: 'it_staff', price: 240, tier: 2 },
+  runeblade:  { name: 'Runeblade',       kind: 'weapon', atk: 9, icon: 'it_bsword',  price: 700, tier: 3 },
+  robe:       { name: "Scholar's Robe",  kind: 'armor',  def: 1, mp: 10, icon: 'it_robe', price: 80, tier: 1 },
+  leather:    { name: 'Leather Jerkin',  kind: 'armor',  def: 1, icon: 'it_leather', price: 60,  tier: 1 },
+  chain:      { name: 'Chain Shirt',     kind: 'armor',  def: 3, icon: 'it_chain',   price: 160, tier: 2 },
+  plate:      { name: 'Plate Harness',   kind: 'armor',  def: 6, icon: 'it_plate',   price: 600, tier: 3 },
+  cap:        { name: 'Leather Cap',     kind: 'helm',   def: 1, icon: 'it_helm',    price: 40,  tier: 1 },
+  helm:       { name: 'Iron Helm',       kind: 'helm',   def: 2, icon: 'it_helm',    price: 150, tier: 2 },
+  crown:      { name: 'Circlet of Wit',  kind: 'helm',   def: 1, mp: 20, icon: 'it_helm', price: 420, tier: 3 },
+  boots:      { name: 'Travel Boots',    kind: 'boots',  def: 1, icon: 'it_boots',   price: 45,  tier: 1 },
+  greaves:    { name: 'Steel Greaves',   kind: 'boots',  def: 2, icon: 'it_boots',   price: 170, tier: 2 },
+  ring:       { name: 'Copper Ring',     kind: 'ring',   atk: 1, icon: 'it_ring',    price: 60,  tier: 1 },
+  signet:     { name: "Warden's Signet", kind: 'ring',   atk: 1, def: 1, icon: 'it_ring', price: 220, tier: 2 },
+  amulet:     { name: 'Bone Amulet',     kind: 'amulet', mp: 8, icon: 'it_amulet',   price: 55,  tier: 1 },
+  talisman:   { name: 'Ember Talisman',  kind: 'amulet', hp: 16, mp: 8, icon: 'it_amulet', price: 240, tier: 2 },
   hpotion:    { name: 'Healing Draught', kind: 'potion', heal: 22, icon: 'it_hpot',  price: 25 },
   mpotion:    { name: 'Mana Philtre',    kind: 'potion', mana: 14, icon: 'it_mpot',  price: 30 },
   emerald:    { name: 'Rough Emerald',   kind: 'valuable', gold: 35, icon: 'it_gem' },
@@ -156,8 +176,112 @@ const SHOP_STOCK = [
   'scroll_drain', 'scroll_sunray', 'scroll_raisedead',
 ];
 
-function heroAtk(h) { return h.atk + (h.weapon ? ITEM_TYPES[h.weapon].atk || 0 : 0); }
-function heroDef(h) { return h.def + (h.armor ? ITEM_TYPES[h.armor].def || 0 : 0); }
+// sum a numeric gear bonus across every worn slot ('rec' multiplies instead)
+function gearBonus(h, key) {
+  let v = key === 'rec' ? 1 : 0;
+  for (const s of SLOTS) {
+    const it = h[s] && ITEM_TYPES[h[s]];
+    if (!it || it[key] === undefined) continue;
+    if (key === 'rec') v *= it[key]; else v += it[key];
+  }
+  return v;
+}
+function gearProcs(h) {
+  const out = [];
+  for (const s of SLOTS) { const it = h[s] && ITEM_TYPES[h[s]]; if (it && it.proc) out.push(it.proc); }
+  return out;
+}
+function heroAtk(h) { return h.atk + gearBonus(h, 'atk'); }
+function heroDef(h) { return h.def + gearBonus(h, 'def'); }
+
+// ---- loot: enchanted gear rolled from a base + affixes, by zone tier ----
+const PREFIXES = [
+  { name: 'Keen',         atk: 2 },
+  { name: 'Sturdy',       def: 2 },
+  { name: 'Swift',        rec: 0.85 },
+  { name: 'Blessed',      hp: 20 },
+  { name: 'Arcane',       mp: 20 },
+  { name: 'Vicious',      atk: 4, tier: 2 },
+  { name: 'Guardian',     def: 4, tier: 2 },
+  { name: 'Shard-forged', atk: 6, def: 2, tier: 3 },
+];
+const SUFFIXES = [
+  { name: 'of Fire',      proc: 'burn' },
+  { name: 'of Frost',     proc: 'slow' },
+  { name: 'of the Bear',  hp: 30 },
+  { name: 'of the Owl',   mp: 30 },
+  { name: 'of Venom',     proc: 'poison', tier: 2 },
+  { name: 'of Thunder',   proc: 'daze', tier: 2 },
+  { name: 'of the Fox',   dodge: 0.12, tier: 2 },
+  { name: 'of the Leech', leech: 0.25, tier: 2 },
+  { name: 'of Thorns',    reflect: 0.3, tier: 3 },
+  { name: 'of the Ember', atk: 3, proc: 'burn', tier: 3 },
+];
+const RARITY = {
+  common: { label: '',      color: '#3a2c14', hex: 0x8a6f28, n: 0, mult: 1,   boost: 1 },
+  magic:  { label: 'MAGIC', color: '#28527a', hex: 0x3a86d8, n: 1, mult: 2.2, boost: 1 },
+  rare:   { label: 'RARE',  color: '#9a6a10', hex: 0xe0b040, n: 2, mult: 4,   boost: 1.25 },
+  epic:   { label: 'EPIC',  color: '#6a2a9a', hex: 0xb060f0, n: 2, mult: 7,   boost: 1.6 },
+};
+const AFFIX_NUMS = ['atk', 'def', 'hp', 'mp'];
+
+function registerGenItem(def) {
+  def.id = 'gen_' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36);
+  ITEM_TYPES[def.id] = def;
+  GameData.genItems.push(def);
+  return def.id;
+}
+
+// roll a piece of gear for a zone tier (1-3). Returns an item id: a plain
+// base for commons, a freshly registered enchanted def otherwise.
+function genLoot(tier, forceRarity) {
+  tier = Math.max(1, Math.min(3, tier || 1));
+  const r = Math.random();
+  const rarity = forceRarity ||
+    (r < (tier === 3 ? 0.1 : 0.04) ? 'epic' : r < 0.2 ? 'rare' : r < 0.55 ? 'magic' : 'common');
+  const bases = Object.entries(ITEM_TYPES).filter(([, it]) =>
+    !it.rarity && it.tier && SLOTS.includes(it.kind) && it.tier <= tier && it.tier >= tier - 1); // plain bases only — never re-enchant a roll
+  const [baseId, base] = bases[Math.floor(Math.random() * bases.length)];
+  if (rarity === 'common') return baseId;
+  const R = RARITY[rarity];
+  const def = { name: base.name, kind: base.kind, icon: base.icon, base: baseId, tier, rarity,
+                price: Math.round((base.price || 50) * R.mult) };
+  for (const k of AFFIX_NUMS) if (base[k]) def[k] = base[k];
+  const pick = table => { const ok = table.filter(a => (a.tier || 1) <= tier); return ok[Math.floor(Math.random() * ok.length)]; };
+  const apply = a => {
+    for (const k of AFFIX_NUMS) if (a[k]) def[k] = (def[k] || 0) + Math.round(a[k] * (0.7 + 0.3 * tier) * R.boost);
+    if (a.rec) def.rec = (def.rec || 1) * a.rec;
+    if (a.proc) def.proc = a.proc;
+    if (a.dodge) def.dodge = (def.dodge || 0) + a.dodge;
+    if (a.leech) def.leech = (def.leech || 0) + a.leech;
+    if (a.reflect) def.reflect = (def.reflect || 0) + a.reflect;
+  };
+  const pre = pick(PREFIXES), suf = pick(SUFFIXES);
+  if (R.n >= 2) { apply(pre); apply(suf); def.name = `${pre.name} ${base.name} ${suf.name}`; }
+  else if (Math.random() < 0.5) { apply(pre); def.name = `${pre.name} ${base.name}`; }
+  else { apply(suf); def.name = `${base.name} ${suf.name}`; }
+  return registerGenItem(def);
+}
+
+// one-line stat summary for toasts and shop rows: "+4 ATK, +30 HP, burns"
+function itemStats(it) {
+  const p = [];
+  if (it.atk) p.push(`+${it.atk} ATK`);
+  if (it.def) p.push(`+${it.def} DEF`);
+  if (it.hp) p.push(`+${it.hp} HP`);
+  if (it.mp) p.push(`+${it.mp} MP`);
+  if (it.rec) p.push(`${Math.round((1 - it.rec) * 100)}% faster`);
+  if (it.proc) p.push({ burn: 'burns', slow: 'chills', poison: 'poisons', daze: 'stuns' }[it.proc]);
+  if (it.dodge) p.push(`${Math.round(it.dodge * 100)}% dodge`);
+  if (it.leech) p.push(`${Math.round(it.leech * 100)}% leech`);
+  if (it.reflect) p.push(`${Math.round(it.reflect * 100)}% thorns`);
+  if (it.heal) p.push(`heals ${it.heal}`);
+  if (it.mana) p.push(`restores ${it.mana} mp`);
+  if (it.kind === 'scroll') p.push(`teaches ${SPELLS[it.spell].name}`);
+  if (it.gold) p.push(`worth ${it.gold}g`);
+  return p.join(', ');
+}
+function itemColor(it) { return RARITY[it.rarity || 'common'].color; }
 function invAdd(id) {
   const i = GameData.inventory.indexOf(null);
   if (i < 0) return false;
@@ -175,7 +299,7 @@ function makeHero(name, cls, stats) {
     atk: stats.atk, def: stats.def,
     spells: stats.spells.slice(), // known spell ids
     quick: stats.spells[0],       // readied on this hero's hotkey
-    weapon: null, armor: null,    // equipped item ids
+    weapon: null, armor: null, helm: null, boots: null, ring: null, amulet: null, // worn item ids (SLOTS)
     range: stats.range,           // tiles; how far this hero's basic attack reaches
     rec: stats.rec,               // ms between attacks
     readyAt: 0,
@@ -195,6 +319,7 @@ const GameData = {
   quests: { lostblade: 'available', wolfcull: 'available' }, // available -> active -> (found/ready) -> done
   inventory: new Array(32).fill(null),
   craftedSpells: [], // player-invented spell specs (persisted; re-registered on load)
+  genItems: [],      // enchanted loot defs (persisted; re-registered on load)
   zone: 'embervale',      // current map
   zoneState: {},          // { [zoneId]: { seed, gone:[] } } — each map remembers itself
 };
@@ -274,7 +399,7 @@ const OAK_VILLAGERS = [
   },
   {
     id: 'gerta', name: 'Gerta the Armorer', art: 'smith', st: 0, spot: [5, 31],
-    shopStock: ['shortsword', 'broadsword', 'huntbow', 'leather', 'chain'],
+    shopStock: ['dagger', 'shortsword', 'broadsword', 'warhammer', 'huntbow', 'longbow', 'leather', 'chain', 'plate', 'cap', 'helm', 'boots', 'greaves'],
     home: 'the city smithy',
     locale: 'You keep the smithy in the walled city of Oakhearth, arming caravan guards and wardens.',
     persona: 'a broad-shouldered, no-nonsense armorer; you judge people by how they keep their edges and respect Bram of Emberfall\'s work when you see it.',
@@ -283,7 +408,7 @@ const OAK_VILLAGERS = [
   },
   {
     id: 'pim', name: 'Pim the Alchemist', art: 'merchant', st: 0, spot: [4, 18],
-    shopStock: ['hpotion', 'mpotion'],
+    shopStock: ['hpotion', 'mpotion', 'amulet', 'ring', 'staff', 'robe'],
     home: 'a market stall on the square',
     locale: 'You sell draughts and philtres from a stall on Oakhearth\'s market square.',
     persona: 'a twitchy, enthusiastic alchemist who is ALMOST sure the batches are stable. You give discounts to anyone with burn scars.',
@@ -458,6 +583,10 @@ ZONES.oakhearth.worldPos = [255, 180];
 ZONES.greymire.worldPos = [150, 310];
 ZONES.shardfields.worldPos = [140, 90];
 ZONES.wolfden.worldPos = [612, 118]; // a hole in the Pinereach hills
+
+// loot tiers: the quality of gear a zone's chests and beasts yield
+ZONES.embervale.tier = 1; ZONES.pinereach.tier = 2; ZONES.oakhearth.tier = 2;
+ZONES.greymire.tier = 2; ZONES.shardfields.tier = 3; ZONES.wolfden.tier = 3;
 
 // coach routes: where each zone's coachman can send you, and the fare
 const TRAVEL = {
